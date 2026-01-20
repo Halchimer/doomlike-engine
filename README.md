@@ -50,6 +50,7 @@ Linux or MacOS.
 - Add a baked light system.
 - Implement an ECS architecture for managing entities and objects in the level.
 - Add entity definition to the level format.
+- Write a custom rendering backend with OpenGL and get rid of SDL3
 
 ## Toolset
 
