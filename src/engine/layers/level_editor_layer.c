@@ -72,7 +72,7 @@ void editor_layer_render(void *state, struct renderer_s *renderer) {
 
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);
     h_iter_t seciter = h_array_iter(&g_state->level.sections);
-    H_FOREACH_PTR(section_t, sec, seciter) {
+    H_FOREACH_PTR(sector_t, sec, seciter) {
         vec2 wc = editor_world_to_screen(estate, get_section_center(sec));
         SDL_FRect r = {
             wc[0] - size * 0.5f,
@@ -83,6 +83,21 @@ void editor_layer_render(void *state, struct renderer_s *renderer) {
         SDL_RenderFillRect(renderer->sdl_renderer, &r);
     }
 
+    h_iter_t transform_iter = component_pool_iter(&g_state->level.world, TRANSFORM);
+    SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 255, 0, 255);
+    H_FOREACH(transform_t, t, transform_iter) {
+        vec2 wv = editor_world_to_screen(estate, t.position);
+        size = 4.0f;
+        SDL_FRect r = {
+            wv[0] - size * 0.5f,
+            wv[1] - size * 0.5f,
+            size,
+            size
+        };
+        SDL_RenderFillRect(renderer->sdl_renderer, &r);
+    }
+
+    SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 255, 255, 255);
     SDL_RenderPresent(renderer->sdl_renderer);
 }
 

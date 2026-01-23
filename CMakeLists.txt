@@ -15,8 +15,8 @@ add_executable(doomlike src/main.c
         src/engine/core/error.h
         src/engine/utils/utils.c
         src/engine/utils/utils.h
-        src/engine/core/camera.c
-        src/engine/core/camera.h
+        src/engine/core/ecs/components/camera.c
+        src/engine/core/ecs/components/camera.h
         src/engine/core/level.c
         src/engine/core/level.h
         src/engine/core/layer.c
@@ -31,7 +31,25 @@ add_executable(doomlike src/main.c
         src/engine/core/texture.c
         src/engine/core/texture.h
         src/engine/core/texture_atlas.c
-        src/engine/core/texture_atlas.h)
+        src/engine/core/texture_atlas.h
+        src/engine/core/ecs/ecs.c
+        src/engine/core/ecs/ecs.h
+        src/engine/core/ecs/component.c
+        src/engine/core/ecs/component.h
+        src/engine/core/ecs/entity.h
+        src/engine/component_ids.h
+        src/engine/core/ecs/components/transform.c
+        src/engine/core/ecs/components/transform.h
+        src/engine/core/ecs/components/sprite.c
+        src/engine/core/ecs/components/sprite.h
+        src/engine/core/ecs/components/billboard.c
+        src/engine/core/ecs/components/billboard.h
+        src/engine/core/ecs/components/velocity.c
+        src/engine/core/ecs/components/velocity.h
+        src/engine/core/ecs/components/level_collider.c
+        src/engine/core/ecs/components/level_collider.h
+        src/engine/core/ecs/components/sector_component.c
+        src/engine/core/ecs/components/sector_component.h)
 
 target_include_directories(doomlike PRIVATE include)
 target_link_directories(doomlike PRIVATE libs)

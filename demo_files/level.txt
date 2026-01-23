@@ -104,10 +104,10 @@ w 5 35 34 STONE 0 2 0 2
 # ===== Sectors =====
 
 # SECTOR 0
-s 0 14 0 3 SLAB SLAB 0.2 0.2 0.2 0.2
+s 0 12 0 3 SLAB SLAB 0.2 0.2 0.2 0.2
 
 #SECTOR 1
-s 12 4 0 1 SLAB SLAB 0.2 0.2 0.2 0.2
+s 12 4 0.5 1 SLAB SLAB 0.2 0.2 0.2 0.2
 
 #SECTOR 2
 s 16 6 0 1 SLAB SLAB 0.2 0.2 0.2 0.2
@@ -120,3 +120,26 @@ s 26 16 0.5 2 SLAB SLAB 0.2 0.2 0.2 0.2
 
 #SECTOR 5
 s 42 4 1 2 SLAB SLAB 0.2 0.2 0.2 0.2
+
+# ===== Entities =====
+
+e Test_Entity
+e Test_Entity
+e Test_Entity
+
+# ===== Components =====
+
+# Test_Entity
+c 0 SPRITE HEALER
+c 0 TRANSFORM 17 18 3 3 0
+c 0 BILLBOARD 0 1.5
+
+# Test_Entity
+c 1 SPRITE HEALER
+c 1 TRANSFORM 48 17 3 3 0
+c 1 BILLBOARD 5 1.5
+
+# Test_Entity
+c 2 SPRITE HEALER
+c 2 TRANSFORM 12 18 3 3 0
+c 2 BILLBOARD 1 1.5

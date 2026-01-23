@@ -1,11 +1,28 @@
 #include "../core/app.h"
 
 #include "layer.h"
-#include "camera.h"
+#include "ecs/components/camera.h"
 #include "../layers/game_layer.h"
 #include "../layers/level_editor_layer.h"
 #include "texture_atlas.h"
 #include "../utils/utils.h"
+
+void create_player(app_t *app) {
+    app->state.player = create_entity(&g_state->level.world);
+    camera_t *cam = add_component(&g_state->level.world, app->state.player, CAMERA);
+    transform_t *t = add_component(&g_state->level.world, app->state.player, TRANSFORM);
+    t->position = (vec2){17, 8};
+    t->rotation = 0;
+    velocity_t *v = add_component(&g_state->level.world, app->state.player, VELOCITY);
+    v->v = (vec2){0, 0};
+    level_collider_t *l = add_component(&g_state->level.world, app->state.player, LEVEL_COLLIDER);
+    l->radius = 0.2f;
+    sector_component_t *s = add_component(&g_state->level.world, app->state.player, SECTOR_COMPONENT);
+    s->sector = 0;
+    *cam = init_camera(t, 85.0 * TO_RADIANS, 0.1);
+    cam->sector = s;
+    set_active_camera(cam);
+}
 
 state_t init_state() {
     state_t state = {0};
@@ -16,14 +33,13 @@ state_t init_state() {
 }
 
 void destroy_state(state_t *state) {
-    // world
-
-    destroy_level(&state->level);
-
     // memory
     h_arena_destroy(state->global_arena);
     h_linear_allocator_destroy(state->update_allocator);
     h_linear_allocator_destroy(state->tick_allocator);
+
+    // level
+    destroy_level(&state->level);
 }
 
 state_t *g_state;
@@ -67,6 +83,7 @@ i32 run_app(app_t *app) {
                 if (event.key.key == SDLK_R) {
                     destroy_level(&g_state->level);
                     g_state->level = load_level("level.txt");
+                    create_player(app);
                 }
             }
 
@@ -97,8 +114,8 @@ void destroy_app(app_t *app) {
 void start(app_t *app) {
     init_texture_atlas();
     g_state->level = load_level("level.txt");
-    g_state->camera = init_camera((vec2){17, 8}, 0, 85.0 * TO_RADIANS, 0.1);
-    g_camera = &g_state->camera;
+    create_player(app);
+    precompute_ray_directions(&app->renderer);
     g_renderer = &app->renderer;
 }
 

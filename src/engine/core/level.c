@@ -11,7 +11,7 @@ vec2 get_segment_normal(segment_t *segment) {
     return normalize(norm);
 }
 
-vec2 get_section_center(section_t *section) {
+vec2 get_section_center(sector_t *section) {
     segment_t *first = section->first_segment;
     vec2 center = {0};
     for (int i = 0;i<section->num_segments;++i) {
@@ -51,29 +51,43 @@ level_t load_level(char const *path) {
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
     char *data = malloc(fsize + 1);
-    fread(data, 1, fsize, f);
+    size_t read_bytes = fread(data, 1, fsize, f);
+    if (read_bytes != fsize) {
+        fprintf(stderr, "Warning : read %zu bytes from level file, expected %ld\n", read_bytes, fsize);
+    }
     fclose(f);
-    data[fsize] = 0;
+    data[read_bytes] = 0;
 
     h_string_t sdata = h_tostring(data);
+
+    h_arena_t *level_arena = h_arena_create("LevelArena");
+
+    // ECS Parsing
+
+    world_t world = init_ecs_world(level_arena);
 
     // Parsing
 
     h_array_t vertices = H_CREATE_ARRAY(vec2, 1024);
     h_array_t segments = H_CREATE_ARRAY(segment_t, 512);
-    h_array_t sector = H_CREATE_ARRAY(section_t, 256);
+    h_array_t sector = H_CREATE_ARRAY(sector_t, 256);
 
     h_array_t lines = h_split_string(sdata, '\n');
     h_iter_t lineiter = h_array_iter(&lines);
+
+    // prefixes
+    h_string_t vs = h_tostring("v");
+    h_string_t ws = h_tostring("w");
+    h_string_t s = h_tostring("s");
+
+    h_string_t ep = h_tostring("e");
+    h_string_t cp = h_tostring("c");
+
     H_FOREACH_PTR(h_string_t, line, lineiter) {
         if (line->size == 0) goto free_continue;
         if (h_cstr(*line)[0] == '#') goto free_continue;
 
         h_array_t token = h_split_string(*line, ' ');
-
-        h_string_t vs = h_tostring("v");
-        h_string_t ws = h_tostring("w");
-        h_string_t s = h_tostring("s");
 
         if (h_string_eq_ptr(h_array_get(&token, 0), &vs )) // vertex
         {
@@ -118,18 +132,42 @@ level_t load_level(char const *path) {
             f32 ceil_uv0 = strtof(h_cstr(H_ARRAY_GET(h_string_t,token, 9)), &end_ptr);
             f32 ceil_uv1 = strtof(h_cstr(H_ARRAY_GET(h_string_t,token, 10)), &end_ptr);
 
-            section_t sec = (section_t){h_array_get(&segments, first), n, floor, ceil, floor_texid, ceil_texid, floor_uv0, floor_uv1, ceil_uv0, ceil_uv1};
-            H_ARRAY_PUSH(section_t, sector, sec);
+            sector_t sec = (sector_t){h_array_get(&segments, first), n, floor, ceil, floor_texid, ceil_texid, floor_uv0, floor_uv1, ceil_uv0, ceil_uv1};
+            H_ARRAY_PUSH(sector_t, sector, sec);
+        }
+        else if (h_string_eq_ptr(h_array_get(&token, 0), &ep)) // entity
+        {
+            entity_t e = create_entity(&world);
+            if (e < 0) {
+                fprintf(stderr, "Failed to create entity\n");
+                goto free_continue;
+            }
+
+            // Whatever is after the 'e' prefix is just comments for now
+            // TODO : implement an entity archetype / preset system
+        }
+        else if (h_string_eq_ptr(h_array_get(&token, 0), &cp)) // component
+        {
+            char* end_ptr;
+            entity_t e = strtol(h_cstr(H_ARRAY_GET(h_string_t,token, 1)), &end_ptr, 10);
+            component_id_t id = get_component_id_from_name(h_cstr(H_ARRAY_GET(h_string_t,token, 2)));
+            void* comp = add_component(&world, e, id);
+            if (!comp) {
+                fprintf(stderr, "Failed to add component %s to entity %d\n", h_cstr(H_ARRAY_GET(h_string_t,token, 2)), e);
+                goto free_continue;
+            }
+            g_component_parsers[id](comp, &token);
         }
         else {
-            fprintf(stderr, "Unknown token %s\n", h_cstr(*line));
+            fprintf(stderr, "Unknown token %s\n", h_cstr(H_ARRAY_GET(h_string_t,token, 0)));
         }
 
+        free_continue : {}
         h_iter_t tokiter = h_array_iter(&token);
         H_FOREACH_PTR(h_string_t, tok, tokiter) free(tok->cstr);
-        h_array_free(&token);
+        if (token.cap > 0)
+            h_array_free(&token);
 
-        free_continue : {}
         free(h_cstr(*line));
         ++line;
     }
@@ -138,11 +176,13 @@ level_t load_level(char const *path) {
     clock_now(&clock);
     printf("Loaded level in %f ms\n", clock_delta(&clock));
 
-    return (level_t){.level_name = path,.vertices = vertices, .segments = segments,.sections = sector};
+    return (level_t){.level_name = path,.vertices = vertices, .segments = segments,.sections = sector, .world = world, .level_arena = level_arena};
 }
 
 void destroy_level(level_t *level) {
     h_array_free(&level->vertices);
     h_array_free(&level->segments);
     h_array_free(&level->sections);
+    destroy_ecs_world(&level->world);
+    h_arena_destroy(level->level_arena);
 }

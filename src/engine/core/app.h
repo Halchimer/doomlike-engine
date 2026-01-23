@@ -3,7 +3,7 @@
 #include <hclib.h>
 #include <pthread.h>
 
-#include "camera.h"
+#include "ecs/components/camera.h"
 #include "level.h"
 #include "renderer.h"
 #include "../utils/utils.h"
@@ -22,7 +22,7 @@ typedef struct state_s {
 // world
 
     level_t level;
-    camera_t camera;
+    entity_t player;
 
 // memory
     h_arena_t *global_arena;

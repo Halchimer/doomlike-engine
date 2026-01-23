@@ -1,4 +1,5 @@
 #include "engine/core/app.h"
+#include "engine/core/ecs/ecs.h"
 #include "engine/layers/game_layer.h"
 #include "engine/layers/level_editor_layer.h"
 

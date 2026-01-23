@@ -1,11 +1,11 @@
 #include "../core/renderer.h"
 #include "app.h"
-#include "camera.h"
+#include "ecs/components/camera.h"
 #include "../utils/version.h"
 
 renderer_t *g_renderer;
 
-#define SCREEN_RES_FACTOR 0.2
+#define SCREEN_RES_FACTOR 0.4
 
 renderer_result_t init_renderer(struct app_s *app,i32 w,i32 h) {
     SDL_SetAppMetadata(app->name, DOOMLIKE_VERSION, app->name);
@@ -37,6 +37,8 @@ renderer_result_t init_renderer(struct app_s *app,i32 w,i32 h) {
     renderer.pixels = h_arena_alloc(app->state.global_arena, (w*SCREEN_RES_FACTOR)*(h*SCREEN_RES_FACTOR)*sizeof(u32));
     printf("Creating depth buffer...");
     renderer.depth_buffer = h_arena_alloc(app->state.global_arena, (w*SCREEN_RES_FACTOR)*(h*SCREEN_RES_FACTOR)*sizeof(_Float16));
+    printf("Creating ray directions buffer...");
+    renderer.ray_directions = h_arena_alloc(app->state.global_arena, (w*SCREEN_RES_FACTOR)*sizeof(vec2));
 
     return (renderer_result_t){.isA=true,.a=renderer};
 }
@@ -53,6 +55,17 @@ void render_frame(renderer_t *renderer) {
 void destroy_renderer(renderer_t *renderer) {
     SDL_DestroyTexture(renderer->render_texture);
     SDL_DestroyRenderer(renderer->sdl_renderer);
+}
+
+void precompute_ray_directions(renderer_t *renderer) {
+    if (!g_camera) return;
+    for (i32 x = 0; x < renderer->w; ++x) {
+        float rx = (float)x / renderer->w;
+        float dm = 2.0f * (rx - 0.5f);
+        dm *= tanf(g_camera->fov) * g_camera->near;
+        vec2 w = (vec2){dm, 1.0f};
+        renderer->ray_directions[x] = normalize(w);
+    }
 }
 
 void fill_pixels(renderer_t *renderer, u32 color) {

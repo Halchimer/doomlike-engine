@@ -8,7 +8,6 @@
 typedef struct editor_layer_state_s {
     vec2 movement;
     vec2 pos;
-
 } editor_layer_state_t;
 extern editor_layer_state_t g_level_editor_state;
 

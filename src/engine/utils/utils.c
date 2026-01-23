@@ -21,6 +21,32 @@ vec2 intersect_seg(vec2 a0, vec2 a1, vec2 b0, vec2 b1) {
     return (vec2){NAN, NAN};
 }
 
+struct intersect_circle_seg_result_s intersect_circle_seg(vec2 center, float radius, vec2 a0, vec2 a1) {
+    vec2 dir = a1 - a0;
+    vec2 ctoseg = a0 - center;
+
+    float a = dot(dir, dir);
+    float b = 2 * dot(dir, ctoseg);
+    float c = dot(ctoseg, ctoseg) - radius*radius;
+
+    float discr = b*b - 4*a*c;
+    if (discr < 0) return (struct intersect_circle_seg_result_s){false};
+
+    float t1 = (-b - sqrtf(discr))/(2*a);
+    float t2 = (-b + sqrtf(discr))/(2*a);
+
+    vec2 p0 = {NAN, NAN};
+    if (t1 >= 0 && t1 <= 1) p0 = a0 + t1 * dir;
+
+    vec2 p1 = {NAN, NAN};
+    if (t2 >= 0 && t2 <= 1) p1 = a0 + t2 * dir;
+
+    if (isnan(p0[0])) p0 = p1;
+    if (isnan(p1[0])) p1 = p0;
+
+    return (struct intersect_circle_seg_result_s){true, p0, p1};
+}
+
 vec2 rot2(vec2 v, float angle) {
     float c = cosf(angle);
     float s = sinf(angle);

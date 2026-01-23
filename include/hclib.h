@@ -199,37 +199,26 @@ void h_queue_free(h_queue_t *queue);
 
 #ifdef H_COLLECTIONS
 
+    typedef u32 (h_kvpair_hash_fn_t)(void*);
     typedef bool (h_kcompare_fn_t)(void*,void*);
 
-    typedef struct h_kvpairdef_t {
-        size_t keysize;
-        size_t valuesize;
-    } h_kvpairdef_t;
-
-    typedef struct h_kvpair_t {
-        h_kvpairdef_t keytype;
-        void *key;
-        void *val;
-
-        struct h_kvpair_t *next;
-    } h_kvpair_t;
-
     typedef struct h_hashmap_t {
-        h_kvpairdef_t keytype;
-        size_t capacity;
+        size_t nbuckets;
+        ssize_t pool_capacity;
+        ssize_t size;
+        size_t pair_size;
+        void *kvpool;
+        size_t *kvnextpool;
+        size_t *buckets;
 
-        h_arena_t *arena;
-        h_kvpair_t *buckets;
-        h_array_t overflow;
-
-        h_hash_fn_t *hash_fn;
+        h_kvpair_hash_fn_t *hash_fn;
         h_kcompare_fn_t *kcompare_fn;
     } h_hashmap_t;
 
-    h_hashmap_t h_create_hashmap(h_kvpairdef_t kvpairdef, size_t capacity, h_hash_fn_t *hash_fn, h_kcompare_fn_t *kcompare_fn);
-#define H_CREATE_HASHMAP(ktype, vtype, capacity, hashfn, compfn) h_create_hashmap((h_kvpairdef_t){.keysize=sizeof(ktype),.valuesize=sizeof(vtype)}, (capacity), (hashfn), (compfn))
+    h_hashmap_t h_create_hashmap(size_t pair_size,size_t nbuckets, h_kvpair_hash_fn_t *hash_fn, h_kcompare_fn_t *kcompare_fn);
+#define H_CREATE_HASHMAP(ptype, nbuckets, hashfn, compfn) h_create_hashmap(sizeof(ptype), (nbuckets), (hashfn), (compfn))
 
-    void *h_hashmap_put(h_hashmap_t *hashmap, void* key, void* val);
+    void *h_hashmap_put(h_hashmap_t *hashmap, void* val);
 #define H_HASHMAP_PUT(hashmap, key, val) (typeof(val)*)({typeof(key) _k##__LINE__ = key;typeof(val) _v##__LINE__ = val;h_hashmap_put(&(hashmap), &(_k##__LINE__), &(_v##__LINE__));})
 
     void *h_hashmap_get(h_hashmap_t *hashmap, void* key);
@@ -642,79 +631,121 @@ __attribute__((always_inline)) inline void h_smart_free(void *ptr);
 
 #ifdef H_COLLECTIONS
 
-    h_hashmap_t h_create_hashmap(h_kvpairdef_t kvpairdef, size_t capacity, h_hash_fn_t *hash_fn, h_kcompare_fn_t *kcompare_fn) {
-        h_hashmap_t hashmap = {.keytype = kvpairdef};
-        hashmap.arena = h_arena_create("HashmapAllocator");
-        hashmap.buckets = calloc(capacity, sizeof(h_kvpair_t));
-        hashmap.overflow = H_CREATE_ARRAY(h_kvpair_t, 128);
+    h_hashmap_t h_create_hashmap(size_t pair_size,size_t nbuckets, h_kvpair_hash_fn_t *hash_fn, h_kcompare_fn_t *kcompare_fn) {
+        h_hashmap_t hashmap;
+        hashmap.nbuckets = nbuckets;
+        hashmap.pair_size = pair_size;
+        hashmap.size = 0;
+        hashmap.pool_capacity = nbuckets;
+        hashmap.kvpool = calloc(hashmap.pool_capacity, pair_size);
+        hashmap.kvnextpool = calloc(hashmap.pool_capacity, sizeof(size_t));
+        hashmap.buckets = calloc(nbuckets, sizeof(size_t));
         hashmap.hash_fn = hash_fn;
         hashmap.kcompare_fn = kcompare_fn;
-        hashmap.capacity = capacity;
 
         return hashmap;
     }
 
-    void *h_hashmap_put(h_hashmap_t *hashmap, void* key, void* val) {
-        u32 idx = h_hash(hashmap->hash_fn, key, hashmap->keytype.keysize)%hashmap->capacity;
+    void *h_hashmap_put(h_hashmap_t *hashmap, void* val) {
+        u32 idx =  hashmap->hash_fn(val) % hashmap->nbuckets;
 
-        h_kvpair_t pair = (h_kvpair_t){
-            hashmap->keytype,
-            h_arena_alloc(hashmap->arena, hashmap->keytype.keysize),
-            h_arena_alloc(hashmap->arena, hashmap->keytype.valuesize),
-            NULL
-        };
+        size_t pairidx = hashmap->size++;
 
-        memcpy(pair.key, key, hashmap->keytype.keysize);
-        memcpy(pair.val, val, hashmap->keytype.valuesize);
-
-        if (!hashmap->buckets[idx].key) {
-            hashmap->buckets[idx] = pair;
-            return pair.val;
+        if (hashmap->size < 0) {
+#ifdef H_DEBUG
+            fprintf(stderr,"Hashmap size variable overflowed.\n");
+#endif
+            return NULL;
         }
-        h_kvpair_t *next = &hashmap->buckets[idx];
-        while (next && next->next) next = next->next;
 
-        //if (!next) return NULL;
+        if (hashmap->size >= hashmap->pool_capacity) {
+            size_t old_pool_capacity = hashmap->pool_capacity;
+            hashmap->pool_capacity *= 2;
+            if (hashmap->pool_capacity < 0) {
+#ifdef H_DEBUG
+                fprintf(stderr,"Hashmap pool capacity variable overflowed.\n");
+#endif
+                return NULL;
+            }
+            hashmap->kvpool = realloc(hashmap->kvpool, hashmap->pool_capacity * hashmap->pair_size);
+            hashmap->kvnextpool = realloc(hashmap->kvnextpool, hashmap->pool_capacity * sizeof(size_t));
+            memset((char*)hashmap->kvnextpool + old_pool_capacity * sizeof(size_t), 0, old_pool_capacity * sizeof(size_t));
+        }
+        memcpy((char*)hashmap->kvpool + pairidx * hashmap->pair_size, val, hashmap->pair_size);
+        if (!hashmap->buckets[idx]) {
+            hashmap->buckets[idx] = pairidx + 1;
+            goto RETURN;
+        }
 
-        h_kvpair_t *npair = (h_kvpair_t *)H_ARRAY_PUSH(h_kvpair_t, hashmap->overflow, pair);
-        next->next = npair;
+        size_t next = hashmap->buckets[idx];
+        size_t last = next;
+        while (next) {
+            last = next;
+            next = hashmap->kvnextpool[next - 1];
+        }
+        hashmap->kvnextpool[last-1] = pairidx + 1;
 
-        return pair.val;
+        RETURN : {}
+        return (char*)hashmap->kvpool + pairidx * hashmap->pair_size;
     }
 
     void *h_hashmap_get(h_hashmap_t *hashmap, void* key) {
-        u32 idx = h_hash(hashmap->hash_fn, key, hashmap->keytype.keysize)%hashmap->capacity;
-
-        h_kvpair_t *pair = &hashmap->buckets[idx];
-        while (pair && pair->key &&!hashmap->kcompare_fn(key, pair->key)) pair = pair->next;
-        return pair ? pair->val : NULL;
+        u32 idx =  hashmap->hash_fn(key) % hashmap->nbuckets;
+        size_t pairidx = hashmap->buckets[idx];
+        while (pairidx) {
+            void *pair = (char*)hashmap->kvpool + (pairidx - 1) * hashmap->pair_size;
+            if (hashmap->kcompare_fn(key, pair)) return pair;
+            pairidx = hashmap->kvnextpool[pairidx - 1];
+        }
+        return NULL;
     }
     void h_hashmap_remove(h_hashmap_t *hashmap, void* key) {
-        u32 idx = h_hash(hashmap->hash_fn, key, hashmap->keytype.keysize)%hashmap->capacity;
+        u32 idx = hashmap->hash_fn(key) % hashmap->nbuckets;
+        size_t pairidx = hashmap->buckets[idx];
+        size_t prev = 0;
 
-        h_kvpair_t *pair = &hashmap->buckets[idx];
-
-        if (hashmap->kcompare_fn(key, pair->key)) {
-            if (pair->next)
-                hashmap->buckets[idx] = *pair->next;
-            else
-                memset(pair, 0, sizeof(h_kvpair_t));
-            return;
+        while (pairidx) {
+            void *pair = (char*)hashmap->kvpool + (pairidx - 1) * hashmap->pair_size;
+            if (hashmap->kcompare_fn(key, pair)) break;
+            prev = pairidx;
+            pairidx = hashmap->kvnextpool[pairidx - 1];
         }
+        if (!pairidx) return;
 
-        while (pair && !hashmap->kcompare_fn(key, pair->next->key)) pair = pair->next;
-        if (pair->next)
-            pair->next = pair->next->next;
+        size_t lastidx = hashmap->size;
+
+        if (pairidx != lastidx) {
+            // swap last
+            void *dst = (char*)hashmap->kvpool + (pairidx - 1) * hashmap->pair_size;
+            void *src = (char*)hashmap->kvpool + (lastidx - 1) * hashmap->pair_size;
+            memmove(dst, src, hashmap->pair_size);
+
+            hashmap->kvnextpool[pairidx - 1] = hashmap->kvnextpool[lastidx - 1];
+
+            for (size_t i = 0; i < hashmap->nbuckets; i++) {
+                if (hashmap->buckets[i] == lastidx) hashmap->buckets[i] = pairidx;
+            }
+            for (size_t i = 0; i < hashmap->size - 1; i++) {
+                if (hashmap->kvnextpool[i] == lastidx) hashmap->kvnextpool[i] = pairidx;
+            }
+        } else {
+        }
+        if (prev) {
+            hashmap->kvnextpool[prev - 1] = hashmap->kvnextpool[pairidx - 1];
+        } else {
+            hashmap->buckets[idx] = hashmap->kvnextpool[pairidx - 1];
+        }
+        hashmap->size--;
     }
     void h_hashmap_clear(h_hashmap_t *hashmap) {
-        h_hashmap_free(hashmap);
-
-        *hashmap = h_create_hashmap(hashmap->keytype, hashmap->capacity, hashmap->hash_fn, hashmap->kcompare_fn);
+        memset(hashmap->buckets, 0, hashmap->nbuckets * sizeof(size_t));
+        memset(hashmap->kvnextpool, 0, hashmap->pool_capacity * sizeof(size_t));
+        hashmap->size = 0;
     }
     void h_hashmap_free(h_hashmap_t *hashmap) {
+        free(hashmap->kvpool);
+        free(hashmap->kvnextpool);
         free(hashmap->buckets);
-        h_arena_destroy(hashmap->arena);
-        h_array_free(&hashmap->overflow);
     }
 #endif
 #endif

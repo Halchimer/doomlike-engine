@@ -8,6 +8,7 @@
  */
 
 #define EYE_Z 1.65F
+#define SEGMENT_STACK_CAPACITY 16
 
 struct renderer_s;
 

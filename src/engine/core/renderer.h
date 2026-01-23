@@ -13,8 +13,11 @@ typedef struct renderer_s {
     SDL_Renderer *sdl_renderer;
 
     SDL_Texture *render_texture;
+
+    // Rendering buffers
     u32 *pixels;
     _Float16 *depth_buffer;
+    vec2 *ray_directions;
 
     window_t window;
 } renderer_t;
@@ -29,6 +32,8 @@ void renderer_set_global(renderer_t *renderer);
 void render_frame(renderer_t *renderer);
 
 void destroy_renderer(renderer_t *renderer);
+
+void precompute_ray_directions(renderer_t *renderer);
 
 void fill_pixels(renderer_t *renderer,u32 color);
 
