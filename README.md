@@ -1,8 +1,8 @@
 # Doom-like Software Renderer
 
 Here's my doom style software raycasting renderer written in C23 with SDL3.
-It is capable of parsing and rendering levels composed of sectors with different floor and ceiling heights,.
-It also supports textures for walls, floors and ceilings.!
+It is capable of parsing and rendering levels composed of sectors with different floor and ceiling heights as well as billboarded sprites.
+It also supports textures for walls, floors and ceilings.
 
 <img src="readme_assets/ingame_screen.png">
 <img src="readme_assets/level_editor_screen.png">
@@ -12,8 +12,10 @@ It also supports textures for walls, floors and ceilings.!
 - Level parsing and rendering
 - Sector and portal based rendering with floor and ceiling heights
 - Textured walls, floors and ceilings
-- Level hot reloading (by pressing R on the keyboard)
+- Billboard sprites rendering (with BILLBOARD, SPRITE and TRANSFORM components)
+- Level hot reloading (by pressing R on the keyboard) (Broken right now)
 - 3D and level visualization modes (press SPACE to switch between them)
+- ECS architecture with entities and components creation in level file.
 - Frame-budget conscious architecture using custom allocators.
 
 ## Levels
@@ -23,7 +25,10 @@ you first define the vertices with lines starting with 'v' followed by 2d coordi
 you then define the segments with lines starting with 'w' followed by a sector index starting at 1 if its a portal, 0 if not, 2 vertex indices and then texture informations, <br>
 and finally you define the sectors with lines starting with 's' followed by the first segment's index, the number of segments, the heights of the floor and ceiling and texture informations. <br>
 
-A line starting with '#' is a comment.
+You can also define entities with lines starting with 'e' (what follows is ignored by the parser for now),
+and you can add components to those entities with lines starting with 'c', followed by the entity index , the component type and the component's parameters.
+
+A line starting with '#' is a comment.<br>
 you can find an exemple level [here](demo_files/level.txt).
 
 ## Controls
@@ -44,12 +49,10 @@ Linux or MacOS.
 
 ## Plans for the future
 
-- Add billboard sprites rendering
-- Add a full asset manager
+- Add a fully working asset manager
 - Add a level editor and more debug tools using Nuklear.
 - Add a baked light system.
-- Implement an ECS architecture for managing entities and objects in the level.
-- Add entity definition to the level format.
+- Add systems and multithreaded jobs to the ECS.
 - Write a custom rendering backend with OpenGL and get rid of SDL3
 
 ## Toolset
