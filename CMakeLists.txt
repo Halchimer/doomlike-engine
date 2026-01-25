@@ -60,7 +60,9 @@ add_executable(doomlike src/main.c
         src/engine/core/ecs/components/level_collider.c
         src/engine/core/ecs/components/level_collider.h
         src/engine/core/ecs/components/sector_component.c
-        src/engine/core/ecs/components/sector_component.h)
+        src/engine/core/ecs/components/sector_component.h
+        src/engine/asset/asset_manager.c
+        src/engine/asset/asset_manager.h)
 
 target_link_libraries(doomlike PRIVATE SDL3::SDL3-static SDL3_image::SDL3_image)
 target_include_directories(doomlike PRIVATE include)

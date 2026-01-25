@@ -5,7 +5,7 @@
 
 renderer_t *g_renderer;
 
-#define SCREEN_RES_FACTOR 0.4
+#define SCREEN_RES_FACTOR 0.2
 
 renderer_result_t init_renderer(struct app_s *app,i32 w,i32 h) {
     SDL_SetAppMetadata(app->name, DOOMLIKE_VERSION, app->name);
