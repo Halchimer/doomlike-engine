@@ -36,16 +36,18 @@ you can find an exemple level [here](demo_files/level.txt).
 SPACE to switch between editor and game modes, and R to reload the level.
 
 ### Level Preview
+
 The arrow keys to move around.
 
 ### In-game
+
 WASD to move, the mouse to look around.
 
 ## Build
 
 The project uses CMake and is only compatible with GCC and Clang compilers.
-The SDL3 dll provided is the one for Windows, you will need to download the right build if you're on
-Linux or MacOS.
+
+SDL and SDL_image are included in the project as git submodules and will compile with the app for your platform.
 
 ## Plans for the future
 
