@@ -64,8 +64,9 @@ void game_layer_update(void *state, f64 dt) {
         vec2 inter = {NAN, NAN};
         segment_t *interseg = NULL;
         for (segment_t *seg = sec->first_segment; seg < sec->first_segment + sec->num_segments; ++seg) {
-
-            radius_inter = intersect_circle_seg(t->position, lcomp->radius, *seg->vertices[0], *seg->vertices[1]);
+            vec2 *verts[2];
+            get_vertices(&g_state->level, seg, verts);
+            radius_inter = intersect_circle_seg(t->position, lcomp->radius, *verts[0], *verts[1]);
 
             if (radius_inter.intersect && !seg->portal) {
                 vec2 center = (radius_inter.a + radius_inter.b) / 2;
@@ -73,14 +74,14 @@ void game_layer_update(void *state, f64 dt) {
                     t->position = t->position - normalize(center - t->position) * (lcomp->radius - (f32)magnitude(center - t->position));
             }
 
-            inter = intersect_seg(t->position, t->position + vel_comp->v * (f32)dt, *seg->vertices[0], *seg->vertices[1]);
+            inter = intersect_seg(t->position, t->position + vel_comp->v * (f32)dt, *verts[0], *verts[1]);
             if (isnan(inter[0])) continue;
 
             if (seg->portal) {
                 sector_comp->sector = seg->portal - 1;
                 continue;
             }
-            vec2 norm = get_segment_normal(seg);
+            vec2 norm = get_segment_normal(&g_state->level, seg);
             vel_comp->v = vel_comp->v - norm * (f32)dot(vel_comp->v, norm);
 
             break;

@@ -3,6 +3,17 @@ project(doomlike C)
 
 set(CMAKE_C_STANDARD 23)
 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON  CACHE BOOL "" FORCE)
+
+set(SDLIMAGE_SHARED OFF CACHE BOOL "" FORCE)
+set(SDLIMAGE_STATIC ON  CACHE BOOL "" FORCE)
+
+add_subdirectory(libs/SDL)
+add_subdirectory(libs/SDL_image)
+
 add_executable(doomlike src/main.c
         src/engine/implementations/hclib.c
         src/engine/core/app.c
@@ -51,6 +62,5 @@ add_executable(doomlike src/main.c
         src/engine/core/ecs/components/sector_component.c
         src/engine/core/ecs/components/sector_component.h)
 
+target_link_libraries(doomlike PRIVATE SDL3::SDL3-static SDL3_image::SDL3_image)
 target_include_directories(doomlike PRIVATE include)
-target_link_directories(doomlike PRIVATE libs)
-target_link_libraries(doomlike PRIVATE SDL3 SDL3_image)

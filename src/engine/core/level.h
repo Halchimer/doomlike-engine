@@ -6,13 +6,15 @@
 #include "ecs/ecs.h"
 
 typedef struct segment_s {
-    vec2 *vertices[2];
+    i32 vertices[2];
     i32 portal;
     i32 texid;
     f32 uvs[4];
 } segment_t;
 
-vec2 get_segment_normal(segment_t *segment);
+struct level_s;
+void get_vertices(struct level_s *level, segment_t *segment, vec2* verts[2]);
+vec2 get_segment_normal(struct level_s *level,segment_t *segment);
 
 typedef struct sector_s {
     segment_t *first_segment;
@@ -22,7 +24,7 @@ typedef struct sector_s {
     f32 fcuvs[4];
 } sector_t;
 
-vec2 get_section_center(sector_t *section);
+vec2 get_section_center(struct level_s *level,sector_t *section);
 
 typedef struct level_s {
     const char* level_name;

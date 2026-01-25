@@ -3,19 +3,28 @@
 #include "texture_atlas.h"
 #include "../utils/utils.h"
 
-vec2 get_segment_normal(segment_t *segment) {
-    vec2 v = *segment->vertices[0];
-    vec2 w = *segment->vertices[1];
+void get_vertices(level_t *level, segment_t *segment, vec2 *verts[2]) {
+        verts[0] = h_array_get(&level->vertices, segment->vertices[0]);
+        verts[1] = h_array_get(&level->vertices, segment->vertices[1]);
+}
+
+vec2 get_segment_normal(level_t *level, segment_t *segment) {
+    vec2 *verts[2];
+    get_vertices(level, segment, verts);
+    vec2 v = *verts[0];
+    vec2 w = *verts[1];
     vec2 a = w - v;
     vec2 norm = (vec2){-a[1], a[0]};
     return normalize(norm);
 }
 
-vec2 get_section_center(sector_t *section) {
+vec2 get_section_center(level_t *level, sector_t *section) {
     segment_t *first = section->first_segment;
     vec2 center = {0};
     for (int i = 0;i<section->num_segments;++i) {
-        vec2 segcenter = *first->vertices[0] + (*first->vertices[1] - *first->vertices[0])/2;
+        vec2 *verts[2];
+        get_vertices(level, first, verts);
+        vec2 segcenter = *verts[0] + (*verts[1] - *verts[0])/2;
         center = center + segcenter;
         first++;
     }
@@ -105,12 +114,12 @@ level_t load_level(char const *path) {
             i32 v2 = strtol(h_cstr(H_ARRAY_GET(h_string_t,token, 3)), &end_ptr, 10);
             i32 texid = get_atlas_index_from_name(h_cstr(H_ARRAY_GET(h_string_t,token, 4)));
             f32 uvs[4] = {
-                strtol(h_cstr(H_ARRAY_GET(h_string_t,token, 5)), &end_ptr, 10),
-                strtol(h_cstr(H_ARRAY_GET(h_string_t,token, 6)), &end_ptr, 10),
-                strtol(h_cstr(H_ARRAY_GET(h_string_t,token, 7)), &end_ptr, 10),
-                strtol(h_cstr(H_ARRAY_GET(h_string_t,token, 8)), &end_ptr, 10),
+                strtof(h_cstr(H_ARRAY_GET(h_string_t,token, 5)), &end_ptr),
+                strtof(h_cstr(H_ARRAY_GET(h_string_t,token, 6)), &end_ptr),
+                strtof(h_cstr(H_ARRAY_GET(h_string_t,token, 7)), &end_ptr),
+                strtof(h_cstr(H_ARRAY_GET(h_string_t,token, 8)), &end_ptr),
             };
-            segment_t s = (segment_t){h_array_get(&vertices, v1), h_array_get(&vertices, v2), portal, texid,
+            segment_t s = (segment_t){v1, v2, portal, texid,
                 uvs[0],
                 uvs[1],
                 uvs[2],
@@ -164,11 +173,11 @@ level_t load_level(char const *path) {
 
         free_continue : {}
         h_iter_t tokiter = h_array_iter(&token);
-        H_FOREACH_PTR(h_string_t, tok, tokiter) free(tok->cstr);
-        if (token.cap > 0)
-            h_array_free(&token);
+        //H_FOREACH_PTR(h_string_t, tok, tokiter) free(tok->cstr);
+        //if (token.cap > 0)
+        //    h_array_free(&token);
 
-        free(h_cstr(*line));
+        //free(h_cstr(*line));
         ++line;
     }
     h_array_free(&lines);

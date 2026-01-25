@@ -37,8 +37,11 @@ void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t 
         return;
     }
 
-    vec2 relint = inter - *seg->vertices[0];
-    float t = magnitude(relint) / magnitude(*seg->vertices[1] - *seg->vertices[0]);
+    vec2 *verts[2];
+    get_vertices(&g_state->level, seg, verts);
+
+    vec2 relint = inter - *verts[0];
+    float t = magnitude(relint) / magnitude(*verts[1] - *verts[0]);
     float uvx = lerp(seg->uvs[1], seg->uvs[0], t);
     float _intpt;
     uvx = modff(uvx, &_intpt);
@@ -264,14 +267,16 @@ void raycaster_render(void *state, struct renderer_s *renderer) {
             float d = FLT_MAX;
             // for each segment in the current sector
             for (segment_t *seg = sec->first_segment; seg < sec->first_segment + sec->num_segments; seg++) {
-                vec2 norm = get_segment_normal(seg);
+                vec2 *verts[2];
+                get_vertices(&g_state->level, seg, verts);
+                vec2 norm = get_segment_normal(&g_state->level, seg);
                 // backface culling
                 if (dot(norm, raydir) > 0) continue;
                 // frustum culling
-                if (dot(*seg->vertices[0] - rayorigin, raydir) <= 0 &&
-                    dot(*seg->vertices[1] - rayorigin, raydir) <= 0) continue;
+                if (dot(*verts[0] - rayorigin, raydir) <= 0 &&
+                    dot(*verts[1] - rayorigin, raydir) <= 0) continue;
 
-                vec2 temp_inter = intersect_seg(rayorigin, rayorigin + raydir * 1000, *seg->vertices[0], *seg->vertices[1]);
+                vec2 temp_inter = intersect_seg(rayorigin, rayorigin + raydir * 1000, *verts[0], *verts[1]);
                 if (isnan(temp_inter[0])) continue;
                 float dt = magnitude(temp_inter - rayorigin) * dist_correction_factor;
                 if (dt < 0 || dt >= d) continue;

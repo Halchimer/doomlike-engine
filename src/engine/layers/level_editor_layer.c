@@ -47,10 +47,13 @@ void editor_layer_render(void *state, struct renderer_s *renderer) {
         SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 0, 0, 255);
         if (seg.portal)
             SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 255, 255);
-        vec2 wv1 = editor_world_to_screen(estate, *seg.vertices[0]);
-        vec2 wv2 = editor_world_to_screen(estate, *seg.vertices[1]);
+        vec2 *verts[2];
+        get_vertices(&g_state->level, &seg, verts);
+
+        vec2 wv1 = editor_world_to_screen(estate, *verts[0]);
+        vec2 wv2 = editor_world_to_screen(estate, *verts[1]);
         SDL_RenderLine(renderer->sdl_renderer, wv1[0], wv1[1], wv2[0], wv2[1]);
-        vec2 normal = get_segment_normal(&seg);
+        vec2 normal = get_segment_normal(&g_state->level, &seg);
         vec2 nstart = wv1 + (wv2 - wv1) / 2.0;
         SDL_RenderLine(renderer->sdl_renderer, nstart[0], nstart[1], (nstart + normal * 5.0f)[0], (nstart + normal * 5.0f)[1]);
     }
@@ -73,7 +76,7 @@ void editor_layer_render(void *state, struct renderer_s *renderer) {
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 0, 255, 0, 255);
     h_iter_t seciter = h_array_iter(&g_state->level.sections);
     H_FOREACH_PTR(sector_t, sec, seciter) {
-        vec2 wc = editor_world_to_screen(estate, get_section_center(sec));
+        vec2 wc = editor_world_to_screen(estate, get_section_center(&g_state->level, sec));
         SDL_FRect r = {
             wc[0] - size * 0.5f,
             wc[1] - size * 0.5f,

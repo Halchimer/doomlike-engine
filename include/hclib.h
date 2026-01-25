@@ -777,7 +777,7 @@ __attribute__((always_inline)) inline void h_smart_free(void *ptr);
 
     h_array_t h_split_string(h_string_t str, char delim) {
         char sdelim[2] = {delim, 0};
-        char *buffer = strdup(h_cstr(str));  // strtok modifie la string
+        char *buffer = strdup(h_cstr(str));
         if (!buffer) return (h_array_t){0};
 
         h_array_t tokens = H_CREATE_ARRAY(h_string_t, 8);
@@ -789,7 +789,6 @@ __attribute__((always_inline)) inline void h_smart_free(void *ptr);
             token = strtok(NULL, sdelim);
         }
 
-        // marque la fin
         H_ARRAY_PUSH(h_string_t, tokens, h_tostring(NULL));
 
         free(buffer);
