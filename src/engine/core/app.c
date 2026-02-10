@@ -85,6 +85,11 @@ i32 run_app(app_t *app) {
                     g_state->level = load_level("level.txt");
                     create_player(app);
                 }
+                if (event.key.key == SDLK_L) {
+                    destroy_level_lightmap(g_state->level.lightmap);
+                    g_state->level.lightmap = generate_level_lightmap(g_state->level.level_arena, &g_state->level);
+                }
+
             }
 
             app->layer->event_handler(app->layer->state, &event);

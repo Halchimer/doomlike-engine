@@ -9,4 +9,6 @@ i32 main(i32 argc, char *argv[]) {
     i32 rc = run_app(&app);
     destroy_app(&app);
     return rc;
+
+    return 0;
 }
