@@ -39,3 +39,6 @@ static inline int first_leading_zero(uint32_t x) {
     if (x == 0xFFFFFFFF) return -1;
     return __builtin_clz(~x);
 }
+
+#define VMAX2(A, B) (vec2){A[0]>B[0]?A[0]:B[0],A[1]>B[1]?A[1]:B[1]}
+#define VMIN2(A, B) (vec2){A[0]<B[0]?A[0]:B[0],A[1]<B[1]?A[1]:B[1]}

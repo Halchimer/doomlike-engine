@@ -84,6 +84,16 @@ void editor_layer_render(void *state, struct renderer_s *renderer) {
             size
         };
         SDL_RenderFillRect(renderer->sdl_renderer, &r);
+
+        vec2 wboundpos = editor_world_to_screen(estate, H_SWIZZLE(sec->bounds, 0, 1));
+        SDL_FRect boundrect = {
+            wboundpos[0],
+            wboundpos[1],
+            sec->bounds[2] * 10.0,
+            sec->bounds[3] * 10.0
+        };
+        SDL_RenderRect(renderer->sdl_renderer, &boundrect);
+
     }
 
     h_iter_t transform_iter = component_pool_iter(&g_state->level.world, TRANSFORM);
