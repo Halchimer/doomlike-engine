@@ -10,6 +10,7 @@
 #include <float.h>
 
 #include "app.h"
+#include "nuklear.h"
 #include "ecs/components/camera.h"
 #include "../core/renderer.h"
 #include "../core/texture_atlas.h"
@@ -27,7 +28,7 @@
  * @param h The height of the segment in screen space.
  * @param d The distance from the camera to the segment being rendered.
  */
-void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t *seg, vec2 inter, f32 h, f32 d) {
+void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t *seg, vec2 inter, f32 h, f32 d,bool is_upper, lightmap_t *lightmap) {
     if (y1 - y0 <= 0) return;
 
     draw_vert_line_depth_buffer(renderer, x, y0 ,y1, (_Float16)d);
@@ -46,11 +47,21 @@ void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t 
     float _intpt;
     uvx = modff(uvx, &_intpt);
 
-    for (i32 y = y0; y <= y1; ++y) {
-        float v_factor = (y - y0) / h;
-        float uvy = lerp(seg->uvs[3], seg->uvs[2],v_factor);
+    int lightmap_texcoord_x;
+    if (lightmap)
+        lightmap_texcoord_x = (1-t) * lightmap->w;
 
+    float inv_h = 1.0f / h;
+    for (i32 y = y0; y <= y1; ++y) {
+        float v_factor;
+        if (is_upper) v_factor = (y - y0) * inv_h;
+        else v_factor = 1 - (y - y0) * inv_h;
+        float uvy = lerp(seg->uvs[3], seg->uvs[2],v_factor);
         uvy = modff(uvy, &_intpt);
+
+        int lightmap_texcoord_y;
+        if (lightmap)
+            lightmap_texcoord_y =  v_factor * lightmap->h;
 
         i32 texcoord_x = (i32)(uvx * (g_texture_atlas[seg->texid].surface->w - 1));
         i32 texcoord_y = (i32)(uvy * (g_texture_atlas[seg->texid].surface->h - 1));
@@ -59,7 +70,19 @@ void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t 
         if (idx < 0 || idx >= renderer->w * renderer->h) continue;
 
         u32 color = get_pixel(&g_texture_atlas[seg->texid], (vec2){texcoord_x, texcoord_y});
-        renderer->pixels[idx] = color;
+
+        u32 shade;
+        if (lightmap)
+            shade = lightmap->data[lightmap_texcoord_x + lightmap_texcoord_y * lightmap->w];
+
+        vec4 vcolor = hex_to_vec4(color);
+        vec4 vshade = hex_to_vec4(shade);
+        vshade[3] = 1.0;
+
+        vec4 final = vcolor;
+        if (lightmap) final = final * vshade;
+
+        renderer->pixels[idx] = vec4_to_hex(final);
     }
 }
 
@@ -77,6 +100,15 @@ void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t 
  * @param ceildiff Distance difference between the current sector's floor level and the ceiling height of the section.
  */
 void render_floor_ceil(renderer_t *renderer, i32 x, i32 y0, i32 y1, sector_t *sec, vec2 raydir, float floordiff, float ceildiff, vec2 camfwd) {
+
+    lightmap_t *floor_lightmap = nullptr;
+    lightmap_t *ceil_lightmap = nullptr;
+
+    if (g_state->level.lightmap) {
+        floor_lightmap = sec->lightmaps;
+        ceil_lightmap = sec->lightmaps + 1;
+    }
+
     vec2 camright = (vec2){-camfwd[1], camfwd[0]};
 
     float cosbeta = fabsf(dot(camfwd, raydir));
@@ -99,6 +131,8 @@ void render_floor_ceil(renderer_t *renderer, i32 x, i32 y0, i32 y1, sector_t *se
             float d = (floorz * ((float)renderer->h)) / r * invCos;
 
             vec2 wpos = g_camera->transform->position + d * raydir;
+            vec2 sec_relative_wpos = wpos - H_SWIZZLE(sec->bounds, 0,1);
+            vec2 lightmap_texcoord = sec_relative_wpos / LIGHTMAP_SAMPLE_SPAN;
 
             vec2 uvs = (vec2){
                 frac(wpos[0]*sec->fcuvs[0]),
@@ -111,7 +145,15 @@ void render_floor_ceil(renderer_t *renderer, i32 x, i32 y0, i32 y1, sector_t *se
             if (idx >= renderer->w * renderer->h) continue;
             if (idx <0) continue;
 
-            renderer->pixels[idx] = get_pixel(&g_texture_atlas[sec->fctexid[0]], texcoord);
+            u32 color = get_pixel(&g_texture_atlas[sec->fctexid[0]], texcoord);
+            vec4 vcolor = hex_to_vec4(color);
+            vec4 vshade = {1.0, 1.0, 1.0, 1.0};
+            if (floor_lightmap) vshade = hex_to_vec4(floor_lightmap->data[(int)lightmap_texcoord[0] + (int)lightmap_texcoord[1] * floor_lightmap->w]);
+            vshade[3] = 1.0;
+
+            vec4 final = vcolor * vshade;
+
+            renderer->pixels[idx] = vec4_to_hex(final);
             renderer->depth_buffer[idx] = (_Float16)d;
         }
     }
@@ -133,6 +175,13 @@ void render_floor_ceil(renderer_t *renderer, i32 x, i32 y0, i32 y1, sector_t *se
             float d = (ceilz * ((f32)renderer->h)) / r * invCos;
 
             vec2 wpos = g_camera->transform->position + d * raydir;
+            vec2 sec_relative_wpos = wpos - H_SWIZZLE(sec->bounds, 0,1);
+            vec2 lightmap_texcoord = sec_relative_wpos / LIGHTMAP_SAMPLE_SPAN;
+            lightmap_texcoord[0] = lightmap_texcoord[0]<0 ? 0 : lightmap_texcoord[0];
+            lightmap_texcoord[1] = lightmap_texcoord[1]<0 ? 0 : lightmap_texcoord[1];
+            if (ceil_lightmap) lightmap_texcoord[0] = lightmap_texcoord[0]>ceil_lightmap->w ? ceil_lightmap->w : lightmap_texcoord[0];
+            if (ceil_lightmap) lightmap_texcoord[1] = lightmap_texcoord[1]>ceil_lightmap->h ? ceil_lightmap->h : lightmap_texcoord[1];
+
             vec2 uvs = (vec2){
                 frac(wpos[0]*sec->fcuvs[2]),
                 frac(wpos[1]*sec->fcuvs[3])
@@ -143,8 +192,16 @@ void render_floor_ceil(renderer_t *renderer, i32 x, i32 y0, i32 y1, sector_t *se
             i32 idx = y * renderer->w + x;
             if (idx >= renderer->w * renderer->h) continue;
             if (idx < 0) continue;
-            u32 color = get_pixel(&g_texture_atlas[sec->fctexid[1]], texcoord);
-            renderer->pixels[idx] = color;
+
+            u32 color = get_pixel(&g_texture_atlas[sec->fctexid[0]], texcoord);
+            vec4 vcolor = hex_to_vec4(color);
+            vec4 vshade = {1.0, 1.0, 1.0, 1.0};
+            if (ceil_lightmap) vshade = hex_to_vec4(ceil_lightmap->data[(int)lightmap_texcoord[0] + (int)lightmap_texcoord[1] * ceil_lightmap->w]);
+            vshade[3] = 1.0;
+            //if (ceil_lightmap) vshade = (vec4){lightmap_texcoord[0] / ceil_lightmap->w, lightmap_texcoord[1] / ceil_lightmap->h, 0.0, 1.0};
+
+            vec4 final = vcolor * vshade;
+            renderer->pixels[idx] = vec4_to_hex(final);
             renderer->depth_buffer[idx] = (_Float16)d;
         }
     }
@@ -155,10 +212,7 @@ void render_billboarded_sprite(renderer_t *renderer, vec2 pos, vec2 size, textur
     const vec2 viewpos = pos - g_camera->transform->position;
     if (dot(camfwd, viewpos) < 0) return;
     const vec2 camright = (vec2){-camfwd[1], camfwd[0]};
-    const i32 width = tex->surface->w;
-    const i32 height = tex->surface->h;
     const vec2 dir = normalize(viewpos);
-    const vec2 plane = {0, tanf(g_camera->fov)};
     const f32 d = magnitude(viewpos) * fabsf(dot(camfwd, dir));
 
     f64 invDet = 1.0 / cross2(camright, camfwd);
@@ -199,6 +253,26 @@ void render_billboarded_sprite(renderer_t *renderer, vec2 pos, vec2 size, textur
 
     if (drawsize_c[0] <= 0 || drawsize_c[1] <= 0) return;
 
+    // lighting
+
+    vec4 shade = {1.0, 1.0, 1.0, 1.0};
+    if (g_state->level.lightmap) {
+        lightmap_t *floor_lightmap = sec->lightmaps;
+        lightmap_t *ceil_lightmap = sec->lightmaps;
+
+        vec2 rpos = pos - H_SWIZZLE(sec->bounds, 0, 1);
+        vec2 lightmap_texcoord = rpos / LIGHTMAP_SAMPLE_SPAN;
+        lightmap_texcoord[0] = CLAMP(lightmap_texcoord[0], 0, floor_lightmap->w - 1);
+        lightmap_texcoord[1] = CLAMP(lightmap_texcoord[1], 0, ceil_lightmap->h - 1);
+
+        vec4 floor_shade = hex_to_vec4(floor_lightmap->data[(int)lightmap_texcoord[0] + (int)lightmap_texcoord[1] * floor_lightmap->w]);
+        vec4 ceil_shade = hex_to_vec4(ceil_lightmap->data[(int)lightmap_texcoord[0] + (int)lightmap_texcoord[1] * ceil_lightmap->w]);
+
+        float factor = posz / (sec->ceil - sec->floor);
+        shade = lerp(floor_shade, ceil_shade, factor);
+        shade[3] = 1.0;
+    }
+
     for (i32 y = drawstart_c[1]; y <= drawend_c[1]; ++y) {
         for (i32 x = drawstart_c[0]; x <= drawend_c[0]; ++x) {
             if (x < 0 || x >= renderer->w || y < 0 || y >= renderer->h) continue;
@@ -210,7 +284,9 @@ void render_billboarded_sprite(renderer_t *renderer, vec2 pos, vec2 size, textur
             uv[1] = 1 - uv[1];
             if (uv[0] > 1 || uv[1] > 1) continue;
             vec2 texcoord = uv * (vec2){tex->surface->w - 1, tex->surface->h - 1};
-            u32 px = get_pixel(tex, texcoord);
+            vec4 vpx = hex_to_vec4(get_pixel(tex, texcoord));
+            vpx = vpx * shade;
+            u32 px = vec4_to_hex(vpx);
             if (!(px&0x000000FF)) continue;
             renderer->depth_buffer[idx] = d;
             renderer->pixels[idx] = px;
@@ -315,6 +391,10 @@ void raycaster_render(void *state, struct renderer_s *renderer) {
             };
             yspan = yspan + addi*projection_factor;
 
+            // getting lightmap for segment
+            lightmap_t *lightmap = nullptr;
+            if (g_state->level.lightmap) lightmap = el.sec->lightmaps + 2 + (el.seg - el.sec->first_segment);
+
             float wall_px_height = yspan[1] - yspan[0];
             if (el.seg->portal) {
                 sector_t *portal_sec = h_array_get( &g_state->level.sections, el.seg->portal - 1);
@@ -328,12 +408,12 @@ void raycaster_render(void *state, struct renderer_s *renderer) {
                 vec2 dfloor_ceil = (vec2){dfloor, -dceil} * projection_factor;
                 vec2 portal_yspan = yspan + dfloor_ceil;
 
-                render_segment_line(renderer, x, yspan[0] ,portal_yspan[0], el.seg, el.inter, wall_px_height, el.d);
-                render_segment_line(renderer, x, portal_yspan[1] ,yspan[1], el.seg, el.inter, wall_px_height, el.d);
+                render_segment_line(renderer, x, yspan[0] ,portal_yspan[0], el.seg, el.inter, wall_px_height, el.d,true, lightmap);
+                render_segment_line(renderer, x, portal_yspan[1] ,yspan[1], el.seg, el.inter, wall_px_height, el.d,false, lightmap);
 
             }
             else
-                render_segment_line(renderer, x, yspan[0] ,yspan[1], el.seg, el.inter, wall_px_height, el.d);
+                render_segment_line(renderer, x, yspan[0] ,yspan[1], el.seg, el.inter, wall_px_height, el.d,true, lightmap);
 
             float dfloor = el.sec->floor - current_sec->floor;
             float dceil = el.sec->ceil - current_sec->floor;

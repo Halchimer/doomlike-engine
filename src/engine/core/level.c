@@ -32,6 +32,39 @@ vec2 get_section_center(level_t *level, sector_t *section) {
     return center;
 }
 
+vec4 compute_sector_bounds(h_array_t *vertices, sector_t *sector) {
+
+    vec4 bounds = {0, 0, 0, 0};
+
+    vec2 min = {INFINITY,INFINITY};
+    vec2 max = {-INFINITY,-INFINITY};
+    segment_t *first = sector->first_segment;
+    for (int i = 0;i<sector->num_segments;++i) {
+        vec2 *verts[2] = {
+            h_array_get(vertices, first->vertices[0]),
+            h_array_get(vertices, first->vertices[1])
+        };
+
+        min = VMIN2(min, (*verts[0]));
+        min = VMIN2(min, (*verts[1]));
+
+        max = VMAX2(max, (*verts[0]));
+        max = VMAX2(max, (*verts[1]));
+
+        ++first;
+    }
+
+    bounds[0] = min[0];
+    bounds[1] = min[1];
+
+    vec2 size = max - min;
+
+    bounds[2] = size[0];
+    bounds[3] = size[1];
+
+    return bounds;
+}
+
 /**
  * Loads a level from the specified file path and parses its contents into a level structure.
  *
@@ -69,7 +102,7 @@ level_t load_level(char const *path) {
 
     h_string_t sdata = h_tostring(data);
 
-    h_arena_t *level_arena = h_arena_create("LevelArena");
+    h_arena_t *level_arena = h_arena_create("level_arena");
 
     // ECS Parsing
 
@@ -141,7 +174,10 @@ level_t load_level(char const *path) {
             f32 ceil_uv0 = strtof(h_cstr(H_ARRAY_GET(h_string_t,token, 9)), &end_ptr);
             f32 ceil_uv1 = strtof(h_cstr(H_ARRAY_GET(h_string_t,token, 10)), &end_ptr);
 
-            sector_t sec = (sector_t){h_array_get(&segments, first), n, floor, ceil, floor_texid, ceil_texid, floor_uv0, floor_uv1, ceil_uv0, ceil_uv1};
+            sector_t sec = (sector_t){h_array_get(&segments, first), n, floor, ceil, floor_texid, ceil_texid, floor_uv0, floor_uv1, ceil_uv0, ceil_uv1, (vec4){0, 0, 0, 0},nullptr};
+
+            sec.bounds = compute_sector_bounds(&vertices, &sec);
+
             H_ARRAY_PUSH(sector_t, sector, sec);
         }
         else if (h_string_eq_ptr(h_array_get(&token, 0), &ep)) // entity
@@ -185,7 +221,7 @@ level_t load_level(char const *path) {
     clock_now(&clock);
     printf("Loaded level in %f ms\n", clock_delta(&clock));
 
-    return (level_t){.level_name = path,.vertices = vertices, .segments = segments,.sections = sector, .world = world, .level_arena = level_arena};
+    return (level_t){.level_name = path,.vertices = vertices, .segments = segments,.sections = sector, .world = world, .level_arena = level_arena, .lightmap = nullptr};
 }
 
 void destroy_level(level_t *level) {
@@ -193,5 +229,7 @@ void destroy_level(level_t *level) {
     h_array_free(&level->segments);
     h_array_free(&level->sections);
     destroy_ecs_world(&level->world);
+    destroy_level_lightmap(level->lightmap);
+
     h_arena_destroy(level->level_arena);
 }
