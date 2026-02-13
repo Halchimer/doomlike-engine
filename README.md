@@ -17,6 +17,7 @@ It also supports textures for walls, floors and ceilings.
 - 3D and level visualization modes (press SPACE to switch between them)
 - ECS architecture with entities and components creation in level file.
 - Frame-budget conscious architecture using custom allocators.
+- Baked lighting (press L to generate lightmaps)
 
 ## Levels
 
@@ -33,7 +34,7 @@ you can find an exemple level [here](demo_files/level.txt).
 
 ## Controls
 
-SPACE to switch between editor and game modes, and R to reload the level.
+SPACE to switch between editor and game modes, R to reload the level, and L to generate lightmaps.
 
 ### Level Preview
 
@@ -53,7 +54,6 @@ SDL and SDL_image are included in the project as git submodules and will compile
 
 - Add a fully working asset manager
 - Add a level editor and more debug tools using Nuklear.
-- Add a baked light system.
 - Add systems and multithreaded jobs to the ECS.
 - Write a custom rendering backend with OpenGL and get rid of SDL3
 
