@@ -168,10 +168,11 @@ h_link_t *h_enlink_same(h_link_t *head);
 void h_free_link(h_link_t *head);
 
 typedef struct h_queue_t {
-    h_link_t *head;
-    h_link_t *tail;
+    void *buffer;
+    size_t cap;
     size_t size;
-    size_t data_size;
+    size_t head, tail;
+    size_t item_size;
 } h_queue_t;
 
 h_queue_t h_create_queue(size_t data_size);
@@ -579,36 +580,40 @@ __attribute__((always_inline)) inline void h_smart_free(void *ptr);
     }
 
     h_queue_t h_create_queue(size_t data_size) {
-        return (h_queue_t){NULL, NULL, 0, data_size};
+        return (h_queue_t){.buffer = calloc(16, data_size), .size = 0, .cap = 16, .head = 0, .tail = 0, .item_size = data_size};
     }
     void h_enqueue(h_queue_t *queue, void *data) {
         if (!data) return;
-        if (!queue->head) {
-            queue->head = h_create_link(queue->data_size);
-            queue->tail = queue->head;
+        if (!queue) return;
+        if (queue->size >= queue->cap) {
+            queue->cap *= 2;
+            void * new_buffer = realloc(queue->buffer, queue->cap * queue->item_size);
+            if (!new_buffer) {
+                fprintf(stderr,"Error in enqueue : realloc() failed.\n");
+                return;
+            }
+            queue->buffer = new_buffer;
         }
-        else
-            queue->tail = h_enlink(queue->head, queue->data_size);
 
-        memcpy(queue->tail->data, data, queue->data_size);
-
+        memcpy((char*)queue->buffer + queue->tail * queue->item_size, data, queue->item_size);
+        queue->tail = (queue->tail + 1) % queue->cap;
         queue->size++;
     }
     void *h_dequeue(h_queue_t *queue) {
-        if (!queue->head) return NULL;
+        if (!queue) return NULL;
+        if (queue->size <= 0) return NULL;
 
-        h_link_t *lnk = queue->head;
-        queue->head = lnk->next;
+        void *out = (char*)queue->buffer + queue->head * queue->item_size;
+        queue->head = (queue->head + 1) % queue->cap;
         queue->size--;
-        void *out = lnk->data;
-        free(lnk);
         return out;
     }
 
     void h_queue_free(h_queue_t *queue){
-        h_free_link(queue->head);
-        queue->head = NULL;
-        queue->tail = NULL;
+        free(queue->buffer);
+        queue->cap = 0;
+        queue->head = 0;
+        queue->tail = 0;
         queue->size = 0;
     }
 
@@ -837,7 +842,7 @@ __attribute__((always_inline)) inline void h_smart_free(void *ptr);
     }
 
     h_iter_t h_queue_iter(h_queue_t *queue) {
-        return (h_iter_t){queue, queue->head, &h_queue_next, &h_queue_hasnext};
+        return (h_iter_t){queue, (char*)queue->buffer + queue->head * queue->item_size, &h_queue_next, &h_queue_hasnext};
     }
     void *h_queue_next(h_iter_t *iter) {
         if (!iter->state) return NULL;
