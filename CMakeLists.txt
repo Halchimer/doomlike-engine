@@ -66,7 +66,11 @@ add_executable(doomlike src/main.c
         src/engine/lighting/lightmap.c
         src/engine/lighting/lightmap.h
         src/engine/core/ecs/components/light.c
-        src/engine/core/ecs/components/light.h)
+        src/engine/core/ecs/components/light.h
+        src/engine/jobs/job.c
+        src/engine/jobs/job.h
+        src/engine/jobs/thread_pool.c
+        src/engine/jobs/thread_pool.h)
 
 target_link_libraries(doomlike PRIVATE SDL3::SDL3-static SDL3_image::SDL3_image)
 target_include_directories(doomlike PRIVATE include)
