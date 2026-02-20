@@ -175,8 +175,8 @@ typedef struct h_queue_t {
     size_t item_size;
 } h_queue_t;
 
-h_queue_t h_create_queue(size_t data_size);
-#define H_CREATE_QUEUE(type) h_create_queue(sizeof(type))
+h_queue_t h_create_queue(size_t data_size, size_t cap);
+#define H_CREATE_QUEUE(type, cap) h_create_queue(sizeof(type), cap)
 
 void h_enqueue(h_queue_t *queue, void *data);
 #define H_ENQUEUE(type, queue, val) ({type _v=(val);h_enqueue((h_queue_t*)&(queue), &_v);})
@@ -579,8 +579,8 @@ __attribute__((always_inline)) inline void h_smart_free(void *ptr);
         }
     }
 
-    h_queue_t h_create_queue(size_t data_size) {
-        return (h_queue_t){.buffer = calloc(16, data_size), .size = 0, .cap = 16, .head = 0, .tail = 0, .item_size = data_size};
+    h_queue_t h_create_queue(size_t data_size, size_t cap) {
+        return (h_queue_t){.buffer = calloc(cap, data_size), .size = 0, .cap = cap, .head = 0, .tail = 0, .item_size = data_size};
     }
     void h_enqueue(h_queue_t *queue, void *data) {
         if (!data) return;
@@ -605,7 +605,7 @@ __attribute__((always_inline)) inline void h_smart_free(void *ptr);
 
         void *out = (char*)queue->buffer + queue->head * queue->item_size;
         queue->head = (queue->head + 1) % queue->cap;
-        queue->size--;
+        --queue->size;
         return out;
     }
 

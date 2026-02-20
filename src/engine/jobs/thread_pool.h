@@ -31,7 +31,7 @@ struct thread_pool_s {
 };
 extern struct thread_pool_s *g_thread_pool;
 
-void initialize_thread_pool(size_t workers_count);
+void initialize_thread_pool();
 void push_job(job_t job);
 void try_exec_job();
 void destroy_thread_pool();

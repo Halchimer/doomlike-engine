@@ -3,13 +3,25 @@
 #include <stdlib.h>
 
 job_mono_t job_mono_create(job_func_t func, void *arg) {
+    return (job_mono_t){
+    .job = (job_t){.func = func, .args = arg},
+    };
+}
 
+void job_mono_execute(job_mono_t *job) {
+    atomic_store(&job->done, 1);
+
+    job->job.counter = &job->done;
+    push_job(job->job);
 }
 
 void job_mono_destroy(job_mono_t *job) {
 }
 
-void job_mono_join(job_mono_t *job) {
+void job_mono_wait(job_mono_t *job) {
+    while (atomic_load(&job->done) > 0) {
+        try_exec_job();
+    }
 }
 
 // job parallel for
@@ -30,26 +42,43 @@ void job_parallel_for_iter_fn(void *arg) {
     }
 }
 
-job_parallel_for_t job_for_create(job_func_t func, void *arg, size_t count, size_t chunk_size) {
+job_parallel_for_t job_for_create(job_func_t func, void *arg, size_t count, size_t chunks) {
     job_parallel_for_t job = {
         .job = (job_t){.func = func, .args = arg},
-        .chunk_size = chunk_size,
+        .chunks = chunks,
         .count = count,
         .iter_data = nullptr
     };
-    atomic_store(&job.counter, (int)ceil((float)count/chunk_size) );
     return job;
 }
 
 void job_for_execute(job_parallel_for_t *job) {
 
-    job->iter_data = calloc(job->chunk_size, sizeof(struct job_parallel_for_iter_data_s));
-    size_t njobs = ceil(job->count / job->chunk_size);
-    printf("Executing job_parallel_for on count %d with %d jobs.", job->count, njobs);
-    for (int i=0; i<njobs; ++i) {
+    if (job->chunks > job->count) {
+        fprintf(stderr, "Too many chunks for job_parallel_for.");
+        return;
+    }
+
+    job->iter_data = calloc(job->chunks, sizeof(struct job_parallel_for_iter_data_s));
+    printf("Executing job_parallel_for on count %d with %d jobs.\n", job->count, job->chunks);
+
+    size_t chunk_size = (job->count + job->chunks - 1) / job->chunks;
+
+    atomic_store(&job->counter, job->chunks);
+
+    for (int i=0; i<job->chunks; ++i) {
+
+        size_t start = i * chunk_size;
+        size_t end = start + chunk_size;
+        end = end>job->count ? job->count : end;
+        size_t amnt = end - start;
+
+        if (start >= job->count)
+            break;
+
         job->iter_data[i] = (struct job_parallel_for_iter_data_s) {
-            .start = i * job->chunk_size,
-            .amnt = job->chunk_size,
+            .start = start,
+            .amnt = amnt,
             .func = job->job.func,
             .arg = job->job.args
         };
