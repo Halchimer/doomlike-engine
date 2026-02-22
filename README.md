@@ -2,7 +2,7 @@
 
 Here's my doom style software raycasting renderer written in C23 with SDL3.
 It is capable of parsing and rendering levels composed of sectors with different floor and ceiling heights as well as billboarded sprites.
-It also supports textures for walls, floors and ceilings.
+It also supports textures for walls, floors and ceilings, as well as baked lighting.
 
 <img src="readme_assets/ingame_screen.png">
 <img src="readme_assets/level_editor_screen.png">
@@ -13,11 +13,12 @@ It also supports textures for walls, floors and ceilings.
 - Sector and portal based rendering with floor and ceiling heights
 - Textured walls, floors and ceilings
 - Billboard sprites rendering (with BILLBOARD, SPRITE and TRANSFORM components)
-- Level hot reloading (by pressing R on the keyboard) (Broken right now)
+- Level hot reloading (by pressing R on the keyboard)
 - 3D and level visualization modes (press SPACE to switch between them)
 - ECS architecture with entities and components creation in level file.
 - Frame-budget conscious architecture using custom allocators.
 - Baked lighting (press L to generate lightmaps)
+- Multithreaded job system. (This one's really cool)
 
 ## Levels
 
@@ -52,9 +53,10 @@ SDL and SDL_image are included in the project as git submodules and will compile
 
 ## Plans for the future
 
+- Stackable app layers and multithreaded rendering are in the work.
 - Add a fully working asset manager
 - Add a level editor and more debug tools using Nuklear.
-- Add systems and multithreaded jobs to the ECS.
+- Add systems abstraction using multithreaded jobs to the ECS.
 - Write a custom rendering backend with OpenGL and get rid of SDL3
 
 ## Toolset
