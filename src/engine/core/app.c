@@ -5,6 +5,7 @@
 #include "../layers/game_layer.h"
 #include "../layers/level_editor_layer.h"
 #include "texture_atlas.h"
+#include "../layers/debug_info_layer.h"
 #include "../utils/utils.h"
 
 void create_player(app_t *app) {
@@ -52,17 +53,45 @@ app_t init_app(char const *name, i32 argc, char **argv) {
 }
 
 void set_layer(app_t *app, const struct layer_s *layer) {
-    if (app->layer) app->layer->destroy(app->layer->state);
-    app->layer = layer;
+    if (!app || !layer) return;
+
+    for (int x=0;x<app->num_layers;++x)
+        app->layer_stack[x]->destroy(app->layer_stack[x]->state);
+
+    app->layer_stack[0] = layer;
+    app->num_layers = 1;
+
     if (app->state.running)
-        layer->start(layer->state);
+        app->layer_stack[0]->start(app->layer_stack[0]->state);
+}
+
+void add_layer(app_t *app, const struct layer_s *layer) {
+    if (!layer || !app) return;
+
+    if (app->num_layers >= MAX_APP_LAYERS ) {
+        fprintf(stderr, "Too many app layers, consider increasing MAX_APP_LAYERS or popping some layers.\n");
+        return;
+    }
+
+    app->layer_stack[app->num_layers++] = layer;
+    if (app->state.running)
+        app->layer_stack[app->num_layers-1]->start(app->layer_stack[app->num_layers-1]->state);
+}
+
+void pop_layer(app_t *app) {
+    if (!app) return;
+    if (app->num_layers == 0) return;
+
+    app->layer_stack[app->num_layers-1]->destroy(app->layer_stack[app->num_layers-1]->state);
+    --app->num_layers;
 }
 
 i32 run_app(app_t *app) {
     g_state = &app->state;
 
     start(app);
-    app->layer->start(app->layer->state);
+    for (int x=0;x<app->num_layers;++x)
+        app->layer_stack[x]->start(app->layer_stack[x]->state);
 
     app->state.running = true;
 
@@ -75,8 +104,10 @@ i32 run_app(app_t *app) {
 
             if (event.type == SDL_EVENT_KEY_UP) {
                 if (event.key.key == SDLK_SPACE) {
-                    if (app->layer == &level_editor_layer)
+                    if (app->layer_stack[0] == &level_editor_layer) {
                         set_layer(app, &game_layer);
+                        add_layer(app, &debug_info_layer);
+                    }
                     else
                         set_layer(app, &level_editor_layer);
                 }
@@ -92,12 +123,21 @@ i32 run_app(app_t *app) {
 
             }
 
-            app->layer->event_handler(app->layer->state, &event);
+            // If an app layer has 'consume events' to true, ignore inputs for all layers bellow.
+            for (int x=app->num_layers-1;x>=0;--x) {
+                app->layer_stack[x]->event_handler(app->layer_stack[x]->state, &event);
+                if (app->layer_stack[x]->consume_events)
+                    break;
+            }
         }
 
         update(app);
-        app->layer->update(app->layer->state, clock_delta(&app->state.deltaclock) / 1000.0);
-        app->layer->render(app->layer->state, &app->renderer);
+        for (int x=0;x<app->num_layers;++x) {
+            app->layer_stack[x]->update(app->layer_stack[x]->state, clock_delta(&app->state.deltaclock) / 1000.0);
+            app->layer_stack[x]->render(app->layer_stack[x]->state, &app->renderer);
+        }
+
+        SDL_RenderPresent(app->renderer.sdl_renderer);
 
         h_linear_allocator_reset(app->state.update_allocator);
         clock_now(&app->state.deltaclock);
@@ -110,7 +150,8 @@ i32 run_app(app_t *app) {
 }
 
 void destroy_app(app_t *app) {
-    app->layer->destroy(app->layer->state);
+    for (int x=0;x<app->num_layers;++x)
+        app->layer_stack[x]->destroy(app->layer_stack[x]->state);
     destroy_state(&app->state);
 
     //for (int i = 0;i<MAX_TEXTURES;++i) destroy_texture(&g_texture_atlas[i]);

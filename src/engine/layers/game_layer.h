@@ -41,5 +41,6 @@ static const layer_t game_layer = (layer_t){
     .tick = game_layer_tick,
     .render = raycaster_render,
     .destroy = game_layer_destroy,
-    .event_handler = game_event_handler
+    .event_handler = game_event_handler,
+    .consume_events = true
 };

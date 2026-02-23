@@ -3,10 +3,12 @@
 #include <hclib.h>
 #include <pthread.h>
 
-#include "ecs/components/camera.h"
+#include "layer.h"
 #include "level.h"
 #include "renderer.h"
 #include "../utils/utils.h"
+
+#define MAX_APP_LAYERS 16
 
 // App State
 
@@ -43,18 +45,36 @@ typedef struct app_s {
     char const *name;
     i32 argc;
     char **argv;
-
-    pthread_t render_thread;
-    pthread_t update_thread;
-
     state_t state;
     renderer_t renderer;
 
-    struct layer_s *layer;
+    struct layer_s *layer_stack[MAX_APP_LAYERS];
+    size_t num_layers;
 } app_t ;
 
 app_t init_app(char const *name, i32 argc, char **argv);
+
+///
+/// Resets the app layer stack to the provided base layer.
+///
+/// @param app
+/// @param layer
+///
 void set_layer(app_t *app, const struct layer_s *layer);
+
+///
+/// Push a layer to the app layer stack.
+///
+/// @param app
+/// @param layer
+void add_layer(app_t *app, const struct layer_s *layer);
+
+///
+/// Pops a layer from the app layer stack.
+///
+/// @param app
+void pop_layer(app_t *app);
+
 i32 run_app(app_t *app);
 void destroy_app(app_t *app);
 

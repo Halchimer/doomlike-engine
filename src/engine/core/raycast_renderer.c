@@ -440,17 +440,4 @@ void raycaster_render(void *state, struct renderer_s *renderer) {
       renderer->sdl_renderer, renderer->render_texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL
     );
 
-    char fps_debug[16];
-    sprintf(fps_debug, "FPS : %.2f", 1000.0f / fmaxf(clock_delta(&g_state->deltaclock), 0.1));
-    SDL_RenderDebugText(renderer->sdl_renderer, 5, 5,fps_debug);
-
-    char level_path_debug[128];
-    sprintf(level_path_debug, "LEVEL : %s", g_state->level.level_name);
-    SDL_RenderDebugText(renderer->sdl_renderer, 5, 20, level_path_debug);
-
-    char current_sector_debug[32];
-    sprintf(current_sector_debug, "CURRENT SECTOR : %d", g_camera->sector->sector);
-    SDL_RenderDebugText(renderer->sdl_renderer, 5, 35, current_sector_debug);
-
-    SDL_RenderPresent(renderer->sdl_renderer);
 }

@@ -46,5 +46,6 @@ static const layer_t level_editor_layer = {
     .tick = editor_layer_tick,
     .render = editor_layer_render,
     .destroy = editor_layer_destroy,
-    .event_handler = editor_event_handler
+    .event_handler = editor_event_handler,
+    .consume_events = true
 };
