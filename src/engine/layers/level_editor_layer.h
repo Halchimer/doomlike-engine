@@ -12,6 +12,7 @@ typedef struct editor_layer_state_s {
 extern editor_layer_state_t g_level_editor_state;
 
 void editor_layer_start(void *state);
+void editor_layer_resume(void *state);
 void editor_layer_update(void *state, f64 dt);
 void editor_layer_tick(void *state, f64 dt);
 void editor_layer_destroy(void *state);
@@ -42,10 +43,12 @@ void editor_event_handler(void *state, SDL_Event *event);
 static const layer_t level_editor_layer = {
     .state = &g_level_editor_state,
     .start = editor_layer_start,
+    .resume = editor_layer_resume,
     .update = editor_layer_update,
     .tick = editor_layer_tick,
     .render = editor_layer_render,
     .destroy = editor_layer_destroy,
     .event_handler = editor_event_handler,
-    .consume_events = true
+    .consume_events = true,
+    .consume_update = true
 };

@@ -7,6 +7,7 @@
 #include "level.h"
 #include "renderer.h"
 #include "../utils/utils.h"
+#include "../editor/nuklear_init.h"
 
 #define MAX_APP_LAYERS 16
 
@@ -46,6 +47,8 @@ typedef struct app_s {
     i32 argc;
     char **argv;
     state_t state;
+
+    nuklear_instance_t nk;
     renderer_t renderer;
 
     struct layer_s *layer_stack[MAX_APP_LAYERS];

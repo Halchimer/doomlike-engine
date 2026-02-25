@@ -6,6 +6,8 @@
 
 // TODO: Implement a level editor using nuklear as a GUI lib
 
+void editor_gui(void *state);
+
 editor_layer_state_t g_level_editor_state = {
     .movement = (vec2){0, 0},
     .pos = (vec2){0, 0}
@@ -24,6 +26,10 @@ void editor_layer_start(void *state) {
     SDL_ShowCursor();
     SDL_SetWindowRelativeMouseMode(g_renderer->window.sdl_window, false);
 }
+
+void editor_layer_resume(void *state) {
+}
+
 void editor_layer_update(void *state, f64 dt) {
     editor_layer_state_t *estate = (editor_layer_state_t *)state;
 
@@ -83,17 +89,9 @@ void editor_layer_render(void *state, struct renderer_s *renderer) {
             size,
             size
         };
-        SDL_RenderFillRect(renderer->sdl_renderer, &r);
-
-        vec2 wboundpos = editor_world_to_screen(estate, H_SWIZZLE(sec->bounds, 0, 1));
-        SDL_FRect boundrect = {
-            wboundpos[0],
-            wboundpos[1],
-            sec->bounds[2] * 10.0,
-            sec->bounds[3] * 10.0
-        };
-        SDL_RenderRect(renderer->sdl_renderer, &boundrect);
-
+        char buf[8];
+        sprintf(buf, "%d", (int)(sec - (sector_t *)g_state->level.sections.data));
+        SDL_RenderDebugText(renderer->sdl_renderer, r.x, r.y, buf);
     }
 
     h_iter_t transform_iter = component_pool_iter(&g_state->level.world, TRANSFORM);
@@ -111,9 +109,11 @@ void editor_layer_render(void *state, struct renderer_s *renderer) {
     }
 
     SDL_SetRenderDrawColor(renderer->sdl_renderer, 255, 255, 255, 255);
-    SDL_RenderPresent(renderer->sdl_renderer);
+
+    editor_gui(state);
 }
 
+// event handler, for editor shortcuts
 void editor_event_handler(void *state, SDL_Event *event) {
     editor_layer_state_t *estate = (editor_layer_state_t *)state;
 
@@ -148,4 +148,30 @@ void editor_event_handler(void *state, SDL_Event *event) {
 
     if (estate->movement[0] != 0 || estate->movement[1] != 0)
         estate->movement = normalize(estate->movement);
+}
+
+// editor gui function
+void editor_gui(void *state) {
+    struct nk_context *ctx = g_nuklear_instance->ctx;
+    struct nk_colorf bg = g_nuklear_instance->bg;
+
+    nk_input_end(ctx);
+
+    /* GUI */
+    if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
+        NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
+        NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE))
+    {
+        if (nk_tree_push(ctx, NK_TREE_TAB, "Entities", NK_MINIMIZED)) {
+            nk_layout_row_dynamic(ctx, 20, 1);
+
+            for (int i = 0; i < 10;++i)
+                nk_label(ctx, "TEST", NK_TEXT_LEFT);
+
+            nk_tree_pop(ctx);
+        }
+    }
+    nk_end(ctx);
+
+    nk_input_begin(ctx);
 }

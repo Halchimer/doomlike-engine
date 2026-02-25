@@ -7,9 +7,14 @@
 game_state_t g_game_state = {0};
 
 void game_layer_start(void *state) {
+
+}
+
+void game_layer_resume(void *state) {
     SDL_HideCursor();
     SDL_SetWindowRelativeMouseMode(g_renderer->window.sdl_window, true);
 }
+
 void game_layer_update(void *state, f64 dt) {
     const vec2 camfwd = camera_forward(g_camera);
     const float acceleration = 60.0f;
@@ -95,7 +100,6 @@ void game_layer_update(void *state, f64 dt) {
         transform_t *t = get_component(&g_state->level.world, e, TRANSFORM);
         t->position = t->position + vel_comp->v * (f32)dt;
     }
-
 }
 void game_layer_tick(void *state, f64 dt) {
 

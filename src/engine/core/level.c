@@ -19,17 +19,9 @@ vec2 get_segment_normal(level_t *level, segment_t *segment) {
 }
 
 vec2 get_section_center(level_t *level, sector_t *section) {
-    segment_t *first = section->first_segment;
-    vec2 center = {0};
-    for (int i = 0;i<section->num_segments;++i) {
-        vec2 *verts[2];
-        get_vertices(level, first, verts);
-        vec2 segcenter = *verts[0] + (*verts[1] - *verts[0])/2;
-        center = center + segcenter;
-        first++;
-    }
-    center = center / (float)section->num_segments;
-    return center;
+    vec4 bounds = section->bounds;
+    vec2 start = H_SWIZZLE(bounds, 0, 1);
+    return start + H_SWIZZLE(bounds, 2, 3)/2.0;
 }
 
 vec4 compute_sector_bounds(h_array_t *vertices, sector_t *sector) {

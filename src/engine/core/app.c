@@ -6,6 +6,7 @@
 #include "../layers/level_editor_layer.h"
 #include "texture_atlas.h"
 #include "../layers/debug_info_layer.h"
+#include "../layers/ingame_editor_layer.h"
 #include "../utils/utils.h"
 
 void create_player(app_t *app) {
@@ -49,6 +50,7 @@ app_t init_app(char const *name, i32 argc, char **argv) {
     app_t app = {name, argc, argv};
     app.state = init_state();
     app.renderer = init_renderer(&app, 800, 600).a;
+    app.nk = init_nuklear_instance(&app.renderer);
     return app;
 }
 
@@ -61,12 +63,17 @@ void set_layer(app_t *app, const struct layer_s *layer) {
     app->layer_stack[0] = layer;
     app->num_layers = 1;
 
-    if (app->state.running)
+    if (app->state.running) {
         app->layer_stack[0]->start(app->layer_stack[0]->state);
+        app->layer_stack[0]->resume(app->layer_stack[0]->state);
+    }
 }
 
 void add_layer(app_t *app, const struct layer_s *layer) {
     if (!layer || !app) return;
+
+    for (int i=0;i<app->num_layers;++i)
+        if (app->layer_stack[i] == layer) return;
 
     if (app->num_layers >= MAX_APP_LAYERS ) {
         fprintf(stderr, "Too many app layers, consider increasing MAX_APP_LAYERS or popping some layers.\n");
@@ -74,8 +81,9 @@ void add_layer(app_t *app, const struct layer_s *layer) {
     }
 
     app->layer_stack[app->num_layers++] = layer;
-    if (app->state.running)
-        app->layer_stack[app->num_layers-1]->start(app->layer_stack[app->num_layers-1]->state);
+
+    app->layer_stack[app->num_layers-1]->start(app->layer_stack[app->num_layers-1]->state);
+    app->layer_stack[app->num_layers-1]->resume(app->layer_stack[app->num_layers-1]->state);
 }
 
 void pop_layer(app_t *app) {
@@ -84,14 +92,17 @@ void pop_layer(app_t *app) {
 
     app->layer_stack[app->num_layers-1]->destroy(app->layer_stack[app->num_layers-1]->state);
     --app->num_layers;
+    app->layer_stack[app->num_layers-1]->resume(app->layer_stack[app->num_layers-1]->state);
 }
 
 i32 run_app(app_t *app) {
     g_state = &app->state;
 
     start(app);
-    for (int x=0;x<app->num_layers;++x)
+    for (int x=0;x<app->num_layers;++x) {
         app->layer_stack[x]->start(app->layer_stack[x]->state);
+        app->layer_stack[x]->resume(app->layer_stack[x]->state);
+    }
 
     app->state.running = true;
 
@@ -106,7 +117,6 @@ i32 run_app(app_t *app) {
                 if (event.key.key == SDLK_SPACE) {
                     if (app->layer_stack[0] == &level_editor_layer) {
                         set_layer(app, &game_layer);
-                        add_layer(app, &debug_info_layer);
                     }
                     else
                         set_layer(app, &level_editor_layer);
@@ -123,6 +133,8 @@ i32 run_app(app_t *app) {
 
             }
 
+            handle_nuklear_events(&app->nk, &event);
+
             // If an app layer has 'consume events' to true, ignore inputs for all layers bellow.
             for (int x=app->num_layers-1;x>=0;--x) {
                 app->layer_stack[x]->event_handler(app->layer_stack[x]->state, &event);
@@ -132,10 +144,16 @@ i32 run_app(app_t *app) {
         }
 
         update(app);
+        for (int i=app->num_layers-1;i>=0;--i) {
+            app->layer_stack[i]->update(app->layer_stack[i]->state, clock_delta(&app->state.deltaclock) / 1000.0);
+            if (app->layer_stack[i]->consume_update)
+                break;
+        }
         for (int x=0;x<app->num_layers;++x) {
-            app->layer_stack[x]->update(app->layer_stack[x]->state, clock_delta(&app->state.deltaclock) / 1000.0);
             app->layer_stack[x]->render(app->layer_stack[x]->state, &app->renderer);
         }
+
+        render_nuklear(&app->nk);
 
         SDL_RenderPresent(app->renderer.sdl_renderer);
 
@@ -153,7 +171,8 @@ void destroy_app(app_t *app) {
     for (int x=0;x<app->num_layers;++x)
         app->layer_stack[x]->destroy(app->layer_stack[x]->state);
     destroy_state(&app->state);
-
+    destroy_nuklear_instance(&app->nk);
+    destroy_renderer(&app->renderer);
     //for (int i = 0;i<MAX_TEXTURES;++i) destroy_texture(&g_texture_atlas[i]);
 }
 
@@ -166,4 +185,14 @@ void start(app_t *app) {
 }
 
 void update(app_t *app) {
+    const bool *keystates = SDL_GetKeyboardState(NULL);
+
+    if (keystates[SDL_SCANCODE_GRAVE] && keystates[SDL_SCANCODE_BACKSPACE])
+        if (app->num_layers > 1) pop_layer(app);
+
+    if (keystates[SDL_SCANCODE_GRAVE] && keystates[SDL_SCANCODE_D])
+        add_layer(app, &debug_info_layer);
+
+    if (keystates[SDL_SCANCODE_GRAVE] && keystates[SDL_SCANCODE_E])
+        add_layer(app, &ingame_editor_layer);
 }

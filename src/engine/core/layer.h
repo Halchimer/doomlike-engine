@@ -13,8 +13,10 @@ struct renderer_s;
 typedef struct layer_s {
     void *state;
     bool consume_events;
+    bool consume_update;
 
     void (*start)(void *state);
+    void (*resume)(void *state);
     void (*update)(void *state, f64 dt);
     void (*tick)(void *state, f64 dt);
     void (*render)(void *state, struct renderer_s *renderer);

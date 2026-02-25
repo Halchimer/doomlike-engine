@@ -7,6 +7,9 @@
 void debug_info_layer_start(void *state) {
 }
 
+void debug_info_layer_resume(void *state) {
+}
+
 void debug_info_layer_update(void *state, double dt) {
 }
 

@@ -309,7 +309,7 @@ void render_billboarded_sprite(renderer_t *renderer, vec2 pos, vec2 size, textur
  */
 void raycaster_render(void *state, struct renderer_s *renderer) {
     const f32 k = renderer->h;
-    const sector_t *current_sec = h_array_get( &g_state->level.sections, g_camera->sector->sector  );
+    const sector_t *current_sec = h_array_get( &g_state->level.sections, g_camera->sector->sector );
     const vec2 camfwd = camera_forward(g_camera);
 
     // for ray rotation

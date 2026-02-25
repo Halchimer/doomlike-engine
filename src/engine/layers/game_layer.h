@@ -10,6 +10,7 @@ typedef struct game_state_s {
 extern game_state_t g_game_state;
 
 void game_layer_start(void *state);
+void game_layer_resume(void *state);
 void game_layer_update(void *state, f64 dt);
 void game_layer_tick(void *state, f64 dt);
 void game_layer_destroy(void *state);
@@ -37,10 +38,12 @@ void game_event_handler(void *state, SDL_Event *event);
 static const layer_t game_layer = (layer_t){
     .state = &g_game_state,
     .start = game_layer_start,
+    .resume = game_layer_resume,
     .update = game_layer_update,
     .tick = game_layer_tick,
     .render = raycaster_render,
     .destroy = game_layer_destroy,
     .event_handler = game_event_handler,
-    .consume_events = true
+    .consume_events = true,
+    .consume_update = true
 };
