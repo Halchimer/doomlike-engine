@@ -5,9 +5,40 @@
 
 // TODO: Implement a level editor using nuklear as a GUI lib
 
+//
+// Editor Config
+//
+
+// Colors
+#define EDITOR_VERTICE_COLOR            255,255,255,255
+#define EDITOR_VERTICE_COLOR_SELECTED   0,0,255,255
+#define EDITOR_SEGMENT_COLOR            255,0,0,255
+#define EDITOR_SEGMENT_COLOR_SELECTED   255,255,0,255
+#define EDITOR_SEGMENT_PORTAL_COLOR     0,255,255,255
+#define EDITOR_SECTOR_COLOR            0,200,55,255
+#define EDITOR_SECTOR_COLOR_SELECTED   0,255,0,100
+
+// Miscellaneous
+#define EDITOR_SECTOR_BOUNDS_MARGIN 5.0 //px
+
+typedef enum edit_mode_e {
+    EDIT_MODE_VERTICES = 0,
+    EDIT_MODE_SEGMENTS,
+    EDIT_MODE_ALL,
+} edit_mode_t;
+
 typedef struct editor_layer_state_s {
     vec2 movement;
     vec2 pos;
+
+    // editor
+    edit_mode_t edit_mode;
+
+    //selection
+    int sector;
+    h_array_t selection;
+    vec2 prev_pos;
+
 } editor_layer_state_t;
 extern editor_layer_state_t g_level_editor_state;
 

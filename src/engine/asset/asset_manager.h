@@ -5,6 +5,8 @@
 #define ASSET_TYPES(X) \
     X(ASSET_TEXTURE)   \
     X(ASSET_AUDIO)     \
+    X(ASSET_LEVEL)     \
+    X(ASSET_LIGHTMAP)
 
 // Generates asset types enum
 typedef enum asset_type_e {

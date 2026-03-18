@@ -77,7 +77,10 @@ add_executable(doomlike src/main.c
         src/engine/editor/nuklear_init.h
         src/engine/implementations/nuklear_sdl3_renderer.c
         src/engine/layers/ingame_editor_layer.c
-        src/engine/layers/ingame_editor_layer.h)
+        src/engine/layers/ingame_editor_layer.h
+        src/engine/editor/level_editor_panels.c
+        src/engine/editor/level_editor_panels.h
+)
 
 target_link_libraries(doomlike PRIVATE SDL3::SDL3-static SDL3_image::SDL3_image)
 target_include_directories(doomlike PRIVATE include)

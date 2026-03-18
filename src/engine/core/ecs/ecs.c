@@ -1,5 +1,7 @@
 #include "ecs.h"
 
+#include <stdbit.h>
+
 #include "../../utils/utils.h"
 
 bool compare_signatures_ptr(void *a, void *b) {
@@ -73,7 +75,9 @@ void remove_entity_from_archetype(world_t *world, entity_t eid) {
 
 entity_t create_entity(world_t *world) {
     if (world->entity_manager.free_mask == ((_BitInt(MAX_ENTITIES))1<<(MAX_ENTITIES - 1))) return -1;
-    entity_t eid =  __builtin_ctz(~world->entity_manager.free_mask);
+    entity_t eid =  __builtin_ctzll(~world->entity_manager.free_mask);
+
+    if (exists(world, eid)) return -1;
 
     entity_record_t *entity = &world->entity_manager.records[eid];
     entity->signature = 0;

@@ -149,9 +149,11 @@ i32 run_app(app_t *app) {
             if (app->layer_stack[i]->consume_update)
                 break;
         }
+        nk_input_end(app->nk.ctx);
         for (int x=0;x<app->num_layers;++x) {
             app->layer_stack[x]->render(app->layer_stack[x]->state, &app->renderer);
         }
+        nk_input_begin(app->nk.ctx);
 
         render_nuklear(&app->nk);
 

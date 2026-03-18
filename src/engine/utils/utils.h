@@ -42,3 +42,7 @@ static inline int first_leading_zero(uint32_t x) {
 
 #define VMAX2(A, B) (vec2){A[0]>B[0]?A[0]:B[0],A[1]>B[1]?A[1]:B[1]}
 #define VMIN2(A, B) (vec2){A[0]<B[0]?A[0]:B[0],A[1]<B[1]?A[1]:B[1]}
+
+static inline bool point_in_bounds(vec2 point, vec4 bounds) {
+    return (point[0]>=bounds[0] && point[1]>=bounds[1] && point[0]<=bounds[0]+bounds[2] && point[1]<=bounds[1]+bounds[3]);
+}

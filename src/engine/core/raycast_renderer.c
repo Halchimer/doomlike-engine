@@ -28,7 +28,7 @@
  * @param h The height of the segment in screen space.
  * @param d The distance from the camera to the segment being rendered.
  */
-void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t *seg, vec2 inter, f32 h, f32 d,bool is_upper, lightmap_t *lightmap) {
+void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t *seg, float segheight, vec2 inter, f32 h, f32 d,bool is_upper, lightmap_t *lightmap) {
     if (y1 - y0 <= 0) return;
 
     draw_vert_line_depth_buffer(renderer, x, y0 ,y1, (_Float16)d);
@@ -42,10 +42,11 @@ void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t 
     get_vertices(&g_state->level, seg, verts);
 
     vec2 relint = inter - *verts[0];
-    float t = magnitude(relint) / magnitude(*verts[1] - *verts[0]);
-    float uvx = lerp(seg->uvs[1], seg->uvs[0], t);
-    float _intpt;
-    uvx = modff(uvx, &_intpt);
+    float uvx = magnitude(relint);
+    float t = uvx / magnitude(*verts[1] - *verts[0]);
+    uvx = frac(uvx) * seg->uvs[2] + seg->uvs[0];
+
+    i32 texcoord_x = (i32)(uvx * (g_texture_atlas[seg->texid].surface->w - 1));
 
     int lightmap_texcoord_x;
     if (lightmap)
@@ -54,17 +55,16 @@ void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t 
     float inv_h = 1.0f / h;
     for (i32 y = y0; y <= y1; ++y) {
         float v_factor;
-        if (is_upper) v_factor = (y - y0) * inv_h;
-        else v_factor = 1 - (y - y0) * inv_h;
-        float uvy = lerp(seg->uvs[3], seg->uvs[2],v_factor);
-        uvy = modff(uvy, &_intpt);
+        if (is_upper) v_factor = (float)(y - y0) * inv_h;
+        else v_factor = (float)(y - y1) * inv_h;
+        float uvy = v_factor * segheight;
+        uvy = frac(uvy) * seg->uvs[3] + seg->uvs[1];
+
+        i32 texcoord_y = (i32)(uvy * (g_texture_atlas[seg->texid].surface->h - 1));
 
         int lightmap_texcoord_y;
         if (lightmap)
             lightmap_texcoord_y =  v_factor * lightmap->h;
-
-        i32 texcoord_x = (i32)(uvx * (g_texture_atlas[seg->texid].surface->w - 1));
-        i32 texcoord_y = (i32)(uvy * (g_texture_atlas[seg->texid].surface->h - 1));
 
         i32 idx = y * renderer->w + x;
         if (idx < 0 || idx >= renderer->w * renderer->h) continue;
@@ -77,6 +77,7 @@ void render_segment_line(renderer_t *renderer, i32 x, i32 y0, i32 y1, segment_t 
 
         vec4 vcolor = hex_to_vec4(color);
         vec4 vshade = hex_to_vec4(shade);
+
         vshade[3] = 1.0;
 
         vec4 final = vcolor;
@@ -383,7 +384,7 @@ void raycaster_render(void *state, struct renderer_s *renderer) {
                 continue;
             }
 
-            vec2 yspan = {renderer->h/2, renderer->h/2};
+            vec2 yspan = {renderer->h*0.5f, renderer->h*0.5f};
             vec2 addi = {0};
             addi = (vec2) {
                 - (current_sec->floor - el.sec->floor + EYE_Z),
@@ -408,12 +409,12 @@ void raycaster_render(void *state, struct renderer_s *renderer) {
                 vec2 dfloor_ceil = (vec2){dfloor, -dceil} * projection_factor;
                 vec2 portal_yspan = yspan + dfloor_ceil;
 
-                render_segment_line(renderer, x, yspan[0] ,portal_yspan[0], el.seg, el.inter, wall_px_height, el.d,true, lightmap);
-                render_segment_line(renderer, x, portal_yspan[1] ,yspan[1], el.seg, el.inter, wall_px_height, el.d,false, lightmap);
+                render_segment_line(renderer, x, yspan[0] ,portal_yspan[0], el.seg, el.sec->ceil-el.sec->floor, el.inter, wall_px_height, el.d,true, lightmap);
+                render_segment_line(renderer, x, portal_yspan[1] ,yspan[1], el.seg, el.sec->ceil-el.sec->floor, el.inter, wall_px_height, el.d,false, lightmap);
 
             }
             else
-                render_segment_line(renderer, x, yspan[0] ,yspan[1], el.seg, el.inter, wall_px_height, el.d,true, lightmap);
+                render_segment_line(renderer, x, yspan[0] ,yspan[1], el.seg, el.sec->ceil-el.sec->floor, el.inter, wall_px_height, el.d,true, lightmap);
 
             float dfloor = el.sec->floor - current_sec->floor;
             float dceil = el.sec->ceil - current_sec->floor;

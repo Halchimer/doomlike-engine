@@ -11,6 +11,7 @@
 #endif
 #include <complex.h>
 #include <math.h>
+#include <xmmintrin.h>
 
 #ifndef H_TYPES
 #include <stdint.h>
@@ -137,7 +138,14 @@ H_DECLARE_CROSS(dvec4)
 
 // magnitude function
 
-#define H_DECLARE_MAGNITUDE2(Type) static inline f64 Type##_magnitude2(Type a) {return sqrt(dot2(a, a));}
+// SIMD optimisation
+#define H_DECLARE_MAGNITUDE2(Type) static inline f32 Type##_magnitude2(Type a) { \
+    f32 adot = dot2(a, a);\
+    __m128 dotreg = _mm_set_ss(adot); \
+    __m128 inv_sqrt_reg = _mm_rsqrt_ss(dotreg); \
+    f32 inv_sqrt = _mm_cvtss_f32(inv_sqrt_reg); \
+    return adot * inv_sqrt;\
+    }
 #define H_DECLARE_MAGNITUDE3(Type) static inline f64 Type##_magnitude3(Type a) {return sqrt(dot3(a, a));}
 #define H_DECLARE_MAGNITUDE4(Type) static inline f64 Type##_magnitude4(Type a) {return sqrt(dot4(a, a));}
 #define H_DECLARE_MAGNITUDE8(Type) static inline f64 Type##_magnitude8(Type a) {return sqrt(dot8(a, a));}

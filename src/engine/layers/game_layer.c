@@ -8,6 +8,9 @@ game_state_t g_game_state = {0};
 
 void game_layer_start(void *state) {
 
+    for (int i=0;i<1023;++i)
+        create_entity(&g_state->level.world);
+
 }
 
 void game_layer_resume(void *state) {
